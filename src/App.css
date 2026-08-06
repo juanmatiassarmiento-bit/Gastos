@@ -1,0 +1,41 @@
+.app {
+  font-family: inherit;
+}
+
+.card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  background: rgba(59, 130, 246, 0.08);
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.card-list-item {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-list-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+}
+
+.install-banner {
+  background: linear-gradient(135deg, #6ee7b7 0%, #3b82f6 100%);
+  color: white;
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 15px 40px rgba(59, 130, 246, 0.18);
+}
+
+.install-banner button {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+@media (max-width: 768px) {
+  .card-list-item {
+    padding: 1rem;
+  }
+}

@@ -18,14 +18,27 @@ const CATEGORIAS = [
 export default function App() {
   const [user, setUser] = useState(null)
   const [gastos, setGastos] = useState([])
+<<<<<<< HEAD
   const [loading, setLoading] = useState(true)
+=======
+  const [cards, setCards] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [securityUnlocked, setSecurityUnlocked] = useState(false)
+  const [selectedCardId, setSelectedCardId] = useState('')
+>>>>>>> 9a955c4 (Initial commit)
   const [formData, setFormData] = useState({
     descripcion: '',
     monto: '',
     categoria: CATEGORIAS[0],
+<<<<<<< HEAD
     fecha: new Date().toISOString().split('T')[0]
   })
   const [cards, setCards] = useState([])
+=======
+    fecha: new Date().toISOString().split('T')[0],
+    tarjeta_id: ''
+  })
+>>>>>>> 9a955c4 (Initial commit)
   const [cardForm, setCardForm] = useState({
     holder: '',
     number: '',
@@ -136,6 +149,7 @@ export default function App() {
     }
   }
 
+<<<<<<< HEAD
   const loadCards = () => {
     try {
       const stored = localStorage.getItem('mis-gastos-cards')
@@ -157,11 +171,59 @@ export default function App() {
     e.preventDefault()
     const digits = normalizeCardNumber(cardForm.number)
 
+=======
+  const cargarTarjetas = async () => {
+    if (!user) return
+
+    const { data, error } = await supabase
+      .from('tarjetas')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error cargando tarjetas:', error)
+    } else {
+      setCards(data || [])
+    }
+  }
+
+  const requestBiometricUnlock = async () => {
+    if (!window.PublicKeyCredential) {
+      alert('Biometría no está disponible en este navegador.')
+      return
+    }
+
+    try {
+      await navigator.credentials.get({
+        publicKey: {
+          challenge: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]),
+          timeout: 60000,
+          userVerification: 'preferred'
+        }
+      })
+      setSecurityUnlocked(true)
+    } catch (error) {
+      console.error('Error en desbloqueo biométrico:', error)
+      alert('No se pudo autenticar con biometría.')
+    }
+  }
+
+  const agregarTarjeta = async (e) => {
+    e.preventDefault()
+    const digits = normalizeCardNumber(cardForm.number)
+
+    if (!user) {
+      alert('Debes iniciar sesión para guardar tarjetas.')
+      return
+    }
+
+>>>>>>> 9a955c4 (Initial commit)
     if (!cardForm.holder || digits.length < 12 || !cardForm.expiry) {
       alert('Completa los datos de la tarjeta correctamente')
       return
     }
 
+<<<<<<< HEAD
     const newCard = {
       id: Date.now(),
       brand: cardForm.brand,
@@ -174,14 +236,58 @@ export default function App() {
     const updated = [...cards, newCard]
     setCards(updated)
     saveCards(updated)
+=======
+    const { data, error } = await supabase
+      .from('tarjetas')
+      .insert([
+        {
+          user_id: user.id,
+          nombre: cardForm.holder,
+          ultimos_digitos: digits.slice(-4),
+          tipo: cardForm.brand,
+          color: '',
+          es_activa: true
+        }
+      ])
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error guardando tarjeta:', error)
+      alert('No se pudo guardar la tarjeta.')
+      return
+    }
+
+    setCards([data, ...cards])
+>>>>>>> 9a955c4 (Initial commit)
     addHolderSuggestion(cardForm.holder)
     setCardForm({ holder: '', number: '', expiry: '', cvv: '', brand: 'Desconocida' })
   }
 
+<<<<<<< HEAD
   const eliminarTarjeta = (id) => {
     const updated = cards.filter((card) => card.id !== id)
     setCards(updated)
     saveCards(updated)
+=======
+  const eliminarTarjeta = async (id) => {
+    const { error } = await supabase
+      .from('tarjetas')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error eliminando tarjeta:', error)
+      alert('No se pudo eliminar la tarjeta.')
+      return
+    }
+
+    setCards(cards.filter((card) => card.id !== id))
+    if (selectedCardId === id) {
+      setSelectedCardId('')
+      setSecurityUnlocked(false)
+    }
+>>>>>>> 9a955c4 (Initial commit)
   }
 
   // Chequear autenticación
@@ -204,13 +310,21 @@ export default function App() {
 
   // Cargar gastos
   useEffect(() => {
+<<<<<<< HEAD
     loadCards()
+=======
+    cargarTarjetas()
+>>>>>>> 9a955c4 (Initial commit)
     loadSuggestions()
   }, [])
 
   useEffect(() => {
     if (user) {
       cargarGastos()
+<<<<<<< HEAD
+=======
+      cargarTarjetas()
+>>>>>>> 9a955c4 (Initial commit)
     }
   }, [user])
 
@@ -252,7 +366,11 @@ export default function App() {
     setLoading(true)
     const { data, error } = await supabase
       .from('gastos')
+<<<<<<< HEAD
       .select('*')
+=======
+      .select('*, tarjetas(*)')
+>>>>>>> 9a955c4 (Initial commit)
       .order('fecha', { ascending: false })
 
     if (error) {
@@ -266,8 +384,13 @@ export default function App() {
   async function agregarGasto(e) {
     e.preventDefault()
     
+<<<<<<< HEAD
     if (!formData.descripcion || !formData.monto) {
       alert('Completa todos los campos')
+=======
+    if (!formData.descripcion || !formData.monto || !formData.tarjeta_id) {
+      alert('Completa todos los campos y selecciona una tarjeta')
+>>>>>>> 9a955c4 (Initial commit)
       return
     }
 
@@ -278,7 +401,12 @@ export default function App() {
           descripcion: formData.descripcion,
           monto: parseFloat(formData.monto),
           categoria: formData.categoria,
+<<<<<<< HEAD
           fecha: formData.fecha
+=======
+          fecha: formData.fecha,
+          tarjeta_id: formData.tarjeta_id
+>>>>>>> 9a955c4 (Initial commit)
         }
       ])
 
@@ -292,7 +420,12 @@ export default function App() {
         descripcion: '',
         monto: '',
         categoria: CATEGORIAS[0],
+<<<<<<< HEAD
         fecha: new Date().toISOString().split('T')[0]
+=======
+        fecha: new Date().toISOString().split('T')[0],
+        tarjeta_id: selectedCardId || ''
+>>>>>>> 9a955c4 (Initial commit)
       })
       cargarGastos()
     }
@@ -324,6 +457,14 @@ export default function App() {
     acc[g.categoria] = (acc[g.categoria] || 0) + g.monto
     return acc
   }, {})
+<<<<<<< HEAD
+=======
+  const gastosPorTarjeta = selectedCardId
+    ? gastos.filter((gasto) => gasto.tarjeta_id === selectedCardId)
+    : []
+  const gastosMostrar = selectedCardId ? gastosPorTarjeta : gastos
+  const tarjetaSeleccionada = cards.find((card) => card.id === selectedCardId)
+>>>>>>> 9a955c4 (Initial commit)
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Cargando...</div>
@@ -458,6 +599,21 @@ export default function App() {
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
+<<<<<<< HEAD
+=======
+            <select
+              value={formData.tarjeta_id}
+              onChange={(e) => setFormData({ ...formData, tarjeta_id: e.target.value })}
+              className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Selecciona tarjeta</option>
+              {cards.map((card) => (
+                <option key={card.id} value={card.id}>
+                  {card.tipo} • •••• {card.ultimos_digitos}
+                </option>
+              ))}
+            </select>
+>>>>>>> 9a955c4 (Initial commit)
             <input
               type="date"
               value={formData.fecha}
@@ -479,7 +635,17 @@ export default function App() {
               <h2 className="text-xl font-bold">Tarjetas</h2>
               <p className="text-sm text-gray-500">Guarda tarjetas con detección automática de marca.</p>
             </div>
+<<<<<<< HEAD
             <span className="text-sm text-gray-600">Marca detectada: <strong>{CARD_BRAND_ICONS[cardForm.brand]} {cardForm.brand}</strong></span>
+=======
+            <button
+              onClick={requestBiometricUnlock}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+              type="button"
+            >
+              {securityUnlocked ? 'Biometría desbloqueada' : 'Desbloquear con biometría'}
+            </button>
+>>>>>>> 9a955c4 (Initial commit)
           </div>
           <form onSubmit={agregarTarjeta} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <input
@@ -518,6 +684,7 @@ export default function App() {
               onChange={(e) => handleCardInputChange('cvv', e.target.value.replace(/\D/g, '').slice(0, 4))}
               className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
+<<<<<<< HEAD
           </form>
           <button
             type="submit"
@@ -527,6 +694,32 @@ export default function App() {
           </button>
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-3">Tarjetas guardadas</h3>
+=======
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              Guardar tarjeta
+            </button>
+          </form>
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-3">Tarjetas guardadas</h3>
+            <div className="mb-4">
+              <label className="block text-sm text-gray-600 mb-2">Historial por tarjeta:</label>
+              <select
+                value={selectedCardId}
+                onChange={(e) => setSelectedCardId(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Todas las tarjetas</option>
+                {cards.map((card) => (
+                  <option key={card.id} value={card.id}>
+                    {card.tipo || card.brand} • •••• {card.ultimos_digitos}
+                  </option>
+                ))}
+              </select>
+            </div>
+>>>>>>> 9a955c4 (Initial commit)
             {cards.length === 0 ? (
               <p className="text-gray-500">No tienes tarjetas guardadas aún.</p>
             ) : (
@@ -535,11 +728,19 @@ export default function App() {
                   <div key={card.id} className="p-4 border rounded-lg flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between card-list-item">
                     <div>
                       <p className="font-semibold flex items-center gap-2">
+<<<<<<< HEAD
                         <span>{CARD_BRAND_ICONS[card.brand]}</span>
                         <span>{card.brand}</span>
                       </p>
                       <p className="text-sm text-gray-600">{card.maskedNumber} • {card.expiry}</p>
                       <p className="text-sm text-gray-500">{card.holder}</p>
+=======
+                        <span>{CARD_BRAND_ICONS[card.tipo] || CARD_BRAND_ICONS[card.brand]}</span>
+                        <span>{card.tipo || card.brand}</span>
+                      </p>
+                      <p className="text-sm text-gray-600">•••• •••• •••• {card.ultimos_digitos}</p>
+                      <p className="text-sm text-gray-500">{card.nombre}</p>
+>>>>>>> 9a955c4 (Initial commit)
                     </div>
                     <button
                       onClick={() => eliminarTarjeta(card.id)}
@@ -555,6 +756,7 @@ export default function App() {
         {/* Lista de gastos */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="px-6 py-4 bg-gray-50 border-b">
+<<<<<<< HEAD
             <h2 className="text-xl font-bold">Últimos Gastos</h2>
           </div>
           {gastos.length === 0 ? (
@@ -566,6 +768,46 @@ export default function App() {
                   <div className="flex-1">
                     <p className="font-semibold">{gasto.descripcion}</p>
                     <p className="text-sm text-gray-600">{gasto.categoria} • {gasto.fecha}</p>
+=======
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-bold">
+                  {selectedCardId ? 'Historial de la tarjeta' : 'Últimos Gastos'}
+                </h2>
+                {selectedCardId && tarjetaSeleccionada && (
+                  <p className="text-sm text-gray-500">
+                    {tarjetaSeleccionada.tipo || tarjetaSeleccionada.brand} • •••• {tarjetaSeleccionada.ultimos_digitos}
+                  </p>
+                )}
+              </div>
+              {selectedCardId && (
+                <button
+                  onClick={() => setSelectedCardId('')}
+                  className="text-indigo-600 hover:underline text-sm"
+                  type="button"
+                >
+                  Mostrar todos
+                </button>
+              )}
+            </div>
+          </div>
+          {gastosMostrar.length === 0 ? (
+            <p className="p-6 text-center text-gray-500">
+              {selectedCardId ? 'No hay gastos para esta tarjeta.' : 'No hay gastos registrados'}
+            </p>
+          ) : (
+            <div className="divide-y">
+              {gastosMostrar.map((gasto) => (
+                <div key={gasto.id} className="p-4 hover:bg-gray-50 flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="font-semibold">{gasto.descripcion}</p>
+                    <p className="text-sm text-gray-600">
+                      {gasto.categoria} • {gasto.fecha}
+                      {gasto.tarjetas?.tipo && (
+                        <span> • {gasto.tarjetas.tipo}</span>
+                      )}
+                    </p>
+>>>>>>> 9a955c4 (Initial commit)
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-lg font-bold text-indigo-600">

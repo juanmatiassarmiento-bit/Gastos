@@ -1,19 +1,13 @@
 {
-<<<<<<< HEAD
-  "appId": "com.tuempresa.misgasos",
-  "appName": "mis-gastos",
-  "webDir": "dist"
-=======
-  "appId": "com.gastos.app",
+  "appId": "com.misgastos.app",
   "appName": "Mis Gastos",
   "webDir": "dist",
   "version": "1.0.0",
-  "bundledWebRuntime": false,
   "android": {
-    "minVersion": 21
+    "minVersion": 21,
+    "targetSdkVersion": 34
   },
   "ios": {
     "contentInset": "automatic"
   }
->>>>>>> 9a955c4 (Initial commit)
 }

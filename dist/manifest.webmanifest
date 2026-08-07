@@ -3,7 +3,10 @@
   "short_name": "Gastos",
   "description": "Controla tus gastos y guarda tarjetas de forma fácil.",
   "start_url": ".",
+<<<<<<< HEAD
+=======
   "scope": ".",
+>>>>>>> 9a955c4 (Initial commit)
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#6366f1",
@@ -17,11 +20,14 @@
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+<<<<<<< HEAD
+=======
     },
     {
       "src": "/icon-1024.png",
       "sizes": "1024x1024",
       "type": "image/png"
+>>>>>>> 9a955c4 (Initial commit)
     }
   ]
 }

@@ -18,27 +18,17 @@ const CATEGORIAS = [
 export default function App() {
   const [user, setUser] = useState(null)
   const [gastos, setGastos] = useState([])
-<<<<<<< HEAD
-  const [loading, setLoading] = useState(true)
-=======
   const [cards, setCards] = useState([])
   const [loading, setLoading] = useState(true)
   const [securityUnlocked, setSecurityUnlocked] = useState(false)
   const [selectedCardId, setSelectedCardId] = useState('')
->>>>>>> 9a955c4 (Initial commit)
   const [formData, setFormData] = useState({
     descripcion: '',
     monto: '',
     categoria: CATEGORIAS[0],
-<<<<<<< HEAD
-    fecha: new Date().toISOString().split('T')[0]
-  })
-  const [cards, setCards] = useState([])
-=======
     fecha: new Date().toISOString().split('T')[0],
     tarjeta_id: ''
   })
->>>>>>> 9a955c4 (Initial commit)
   const [cardForm, setCardForm] = useState({
     holder: '',
     number: '',
@@ -149,29 +139,6 @@ export default function App() {
     }
   }
 
-<<<<<<< HEAD
-  const loadCards = () => {
-    try {
-      const stored = localStorage.getItem('mis-gastos-cards')
-      if (stored) setCards(JSON.parse(stored))
-    } catch (error) {
-      console.error('Error loading cards:', error)
-    }
-  }
-
-  const saveCards = (nextCards) => {
-    try {
-      localStorage.setItem('mis-gastos-cards', JSON.stringify(nextCards))
-    } catch (error) {
-      console.error('Error saving cards:', error)
-    }
-  }
-
-  const agregarTarjeta = (e) => {
-    e.preventDefault()
-    const digits = normalizeCardNumber(cardForm.number)
-
-=======
   const cargarTarjetas = async () => {
     if (!user) return
 
@@ -217,26 +184,11 @@ export default function App() {
       return
     }
 
->>>>>>> 9a955c4 (Initial commit)
     if (!cardForm.holder || digits.length < 12 || !cardForm.expiry) {
       alert('Completa los datos de la tarjeta correctamente')
       return
     }
 
-<<<<<<< HEAD
-    const newCard = {
-      id: Date.now(),
-      brand: cardForm.brand,
-      holder: cardForm.holder,
-      maskedNumber: `•••• •••• •••• ${digits.slice(-4)}`,
-      expiry: cardForm.expiry,
-      created_at: new Date().toISOString()
-    }
-
-    const updated = [...cards, newCard]
-    setCards(updated)
-    saveCards(updated)
-=======
     const { data, error } = await supabase
       .from('tarjetas')
       .insert([
@@ -259,17 +211,10 @@ export default function App() {
     }
 
     setCards([data, ...cards])
->>>>>>> 9a955c4 (Initial commit)
     addHolderSuggestion(cardForm.holder)
     setCardForm({ holder: '', number: '', expiry: '', cvv: '', brand: 'Desconocida' })
   }
 
-<<<<<<< HEAD
-  const eliminarTarjeta = (id) => {
-    const updated = cards.filter((card) => card.id !== id)
-    setCards(updated)
-    saveCards(updated)
-=======
   const eliminarTarjeta = async (id) => {
     const { error } = await supabase
       .from('tarjetas')
@@ -287,10 +232,8 @@ export default function App() {
       setSelectedCardId('')
       setSecurityUnlocked(false)
     }
->>>>>>> 9a955c4 (Initial commit)
   }
 
-  // Chequear autenticación
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
@@ -308,23 +251,15 @@ export default function App() {
     return () => subscription?.unsubscribe()
   }, [])
 
-  // Cargar gastos
   useEffect(() => {
-<<<<<<< HEAD
-    loadCards()
-=======
     cargarTarjetas()
->>>>>>> 9a955c4 (Initial commit)
     loadSuggestions()
   }, [])
 
   useEffect(() => {
     if (user) {
       cargarGastos()
-<<<<<<< HEAD
-=======
       cargarTarjetas()
->>>>>>> 9a955c4 (Initial commit)
     }
   }, [user])
 
@@ -366,11 +301,7 @@ export default function App() {
     setLoading(true)
     const { data, error } = await supabase
       .from('gastos')
-<<<<<<< HEAD
-      .select('*')
-=======
       .select('*, tarjetas(*)')
->>>>>>> 9a955c4 (Initial commit)
       .order('fecha', { ascending: false })
 
     if (error) {
@@ -384,13 +315,8 @@ export default function App() {
   async function agregarGasto(e) {
     e.preventDefault()
     
-<<<<<<< HEAD
-    if (!formData.descripcion || !formData.monto) {
-      alert('Completa todos los campos')
-=======
     if (!formData.descripcion || !formData.monto || !formData.tarjeta_id) {
       alert('Completa todos los campos y selecciona una tarjeta')
->>>>>>> 9a955c4 (Initial commit)
       return
     }
 
@@ -401,12 +327,8 @@ export default function App() {
           descripcion: formData.descripcion,
           monto: parseFloat(formData.monto),
           categoria: formData.categoria,
-<<<<<<< HEAD
-          fecha: formData.fecha
-=======
           fecha: formData.fecha,
           tarjeta_id: formData.tarjeta_id
->>>>>>> 9a955c4 (Initial commit)
         }
       ])
 
@@ -420,12 +342,8 @@ export default function App() {
         descripcion: '',
         monto: '',
         categoria: CATEGORIAS[0],
-<<<<<<< HEAD
-        fecha: new Date().toISOString().split('T')[0]
-=======
         fecha: new Date().toISOString().split('T')[0],
         tarjeta_id: selectedCardId || ''
->>>>>>> 9a955c4 (Initial commit)
       })
       cargarGastos()
     }
@@ -451,20 +369,17 @@ export default function App() {
     setGastos([])
   }
 
-  // Calcular totales
   const totalGastos = gastos.reduce((sum, g) => sum + g.monto, 0)
   const gastoPorCategoria = gastos.reduce((acc, g) => {
     acc[g.categoria] = (acc[g.categoria] || 0) + g.monto
     return acc
   }, {})
-<<<<<<< HEAD
-=======
+
   const gastosPorTarjeta = selectedCardId
     ? gastos.filter((gasto) => gasto.tarjeta_id === selectedCardId)
     : []
   const gastosMostrar = selectedCardId ? gastosPorTarjeta : gastos
   const tarjetaSeleccionada = cards.find((card) => card.id === selectedCardId)
->>>>>>> 9a955c4 (Initial commit)
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Cargando...</div>
@@ -534,7 +449,7 @@ export default function App() {
             )}
           </div>
         </div>
-        {/* Resumen */}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between">
@@ -548,7 +463,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Categorías más gastadas */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <p className="text-gray-600 text-sm mb-3">Top categorías</p>
             <div className="space-y-2">
@@ -565,7 +479,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Formulario */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-xl font-bold mb-4">Agregar Gasto</h2>
           <form onSubmit={agregarGasto} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
@@ -599,8 +512,6 @@ export default function App() {
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
-<<<<<<< HEAD
-=======
             <select
               value={formData.tarjeta_id}
               onChange={(e) => setFormData({ ...formData, tarjeta_id: e.target.value })}
@@ -613,7 +524,6 @@ export default function App() {
                 </option>
               ))}
             </select>
->>>>>>> 9a955c4 (Initial commit)
             <input
               type="date"
               value={formData.fecha}
@@ -635,9 +545,6 @@ export default function App() {
               <h2 className="text-xl font-bold">Tarjetas</h2>
               <p className="text-sm text-gray-500">Guarda tarjetas con detección automática de marca.</p>
             </div>
-<<<<<<< HEAD
-            <span className="text-sm text-gray-600">Marca detectada: <strong>{CARD_BRAND_ICONS[cardForm.brand]} {cardForm.brand}</strong></span>
-=======
             <button
               onClick={requestBiometricUnlock}
               className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
@@ -645,7 +552,6 @@ export default function App() {
             >
               {securityUnlocked ? 'Biometría desbloqueada' : 'Desbloquear con biometría'}
             </button>
->>>>>>> 9a955c4 (Initial commit)
           </div>
           <form onSubmit={agregarTarjeta} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <input
@@ -684,17 +590,6 @@ export default function App() {
               onChange={(e) => handleCardInputChange('cvv', e.target.value.replace(/\D/g, '').slice(0, 4))}
               className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-<<<<<<< HEAD
-          </form>
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
-            Guardar tarjeta
-          </button>
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-3">Tarjetas guardadas</h3>
-=======
             <button
               type="submit"
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
@@ -719,7 +614,6 @@ export default function App() {
                 ))}
               </select>
             </div>
->>>>>>> 9a955c4 (Initial commit)
             {cards.length === 0 ? (
               <p className="text-gray-500">No tienes tarjetas guardadas aún.</p>
             ) : (
@@ -728,19 +622,11 @@ export default function App() {
                   <div key={card.id} className="p-4 border rounded-lg flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between card-list-item">
                     <div>
                       <p className="font-semibold flex items-center gap-2">
-<<<<<<< HEAD
-                        <span>{CARD_BRAND_ICONS[card.brand]}</span>
-                        <span>{card.brand}</span>
-                      </p>
-                      <p className="text-sm text-gray-600">{card.maskedNumber} • {card.expiry}</p>
-                      <p className="text-sm text-gray-500">{card.holder}</p>
-=======
                         <span>{CARD_BRAND_ICONS[card.tipo] || CARD_BRAND_ICONS[card.brand]}</span>
                         <span>{card.tipo || card.brand}</span>
                       </p>
                       <p className="text-sm text-gray-600">•••• •••• •••• {card.ultimos_digitos}</p>
                       <p className="text-sm text-gray-500">{card.nombre}</p>
->>>>>>> 9a955c4 (Initial commit)
                     </div>
                     <button
                       onClick={() => eliminarTarjeta(card.id)}
@@ -753,22 +639,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Lista de gastos */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="px-6 py-4 bg-gray-50 border-b">
-<<<<<<< HEAD
-            <h2 className="text-xl font-bold">Últimos Gastos</h2>
-          </div>
-          {gastos.length === 0 ? (
-            <p className="p-6 text-center text-gray-500">No hay gastos registrados</p>
-          ) : (
-            <div className="divide-y">
-              {gastos.map((gasto) => (
-                <div key={gasto.id} className="p-4 hover:bg-gray-50 flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="font-semibold">{gasto.descripcion}</p>
-                    <p className="text-sm text-gray-600">{gasto.categoria} • {gasto.fecha}</p>
-=======
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-xl font-bold">
@@ -807,7 +679,6 @@ export default function App() {
                         <span> • {gasto.tarjetas.tipo}</span>
                       )}
                     </p>
->>>>>>> 9a955c4 (Initial commit)
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-lg font-bold text-indigo-600">
@@ -830,7 +701,6 @@ export default function App() {
   )
 }
 
-// Componente de Login
 function Login({ setUser }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

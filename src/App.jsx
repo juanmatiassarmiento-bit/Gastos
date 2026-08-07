@@ -2,21 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Papa from 'papaparse';
 
-// 1. Obtención segura de Variables de Entorno
-const getEnvVar = (key) => {
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
-    return import.meta.env[key];
-  }
-  if (typeof process !== 'undefined' && process.env && process.env[key]) {
-    return process.env[key];
-  }
-  return '';
-};
+// Lectura segura de variables de entorno
+const rawUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-const rawUrl = getEnvVar('VITE_SUPABASE_URL');
-const rawKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
-
-// Asegurar URL válida para evitar el crash
 const isValidHttpUrl = (string) => {
   try {
     const url = new URL(string);
@@ -29,13 +18,12 @@ const isValidHttpUrl = (string) => {
 const supabaseUrl = isValidHttpUrl(rawUrl) ? rawUrl : 'https://placeholder.supabase.co';
 const supabaseAnonKey = rawKey || 'placeholder';
 
-// Inicialización de Supabase protegida
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'reset'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -43,12 +31,12 @@ export default function App() {
   const [selectedCardId, setSelectedCardId] = useState('all');
   const [expenses, setExpenses] = useState([]);
 
-  // Nueva Tarjeta
+  // Formulario tarjeta
   const [newCardHolder, setNewCardHolder] = useState('');
   const [newCardDigits, setNewCardDigits] = useState('');
   const [newCardBrand, setNewCardBrand] = useState('Visa');
 
-  // Gasto Manual
+  // Formulario gasto
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('General');
@@ -87,7 +75,16 @@ export default function App() {
       return;
     }
 
-    if (isSignUp) {
+    if (authMode === 'reset') {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      if (error) alert(error.message);
+      else alert('Se ha enviado un enlace para restablecer tu contraseña a tu correo electrónico.');
+      return;
+    }
+
+    if (authMode === 'signup') {
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) alert(error.message);
       else alert('Revisa tu correo para confirmar la cuenta.');
@@ -152,7 +149,6 @@ export default function App() {
     }
   };
 
-  // Importador de CSV de Mercado Pago
   const handleImportCSV = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -218,7 +214,7 @@ export default function App() {
 
         if (!error && data) {
           setExpenses([...data, ...expenses]);
-          alert(`¡Éxito! Se importaron ${data.length} consumos de Mercado Pago.`);
+          alert(`¡Éxito! Se importaron ${data.length} consumos.`);
         } else {
           alert('Error al guardar en Supabase: ' + (error?.message || 'Error desconocido'));
         }
@@ -244,102 +240,129 @@ export default function App() {
     );
   }
 
-  // --- VISTA DE LOGIN Y REGISTRO ---
+  // --- VISTA DE LOGIN / REGISTRO / RECUPERACIÓN ---
   if (!session) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: 'Segoe UI, sans-serif' }}>
-        <div style={{ width: '100%', maxWidth: 850, background: '#ffffff', borderRadius: 20, overflow: 'hidden', display: 'flex', flexWrap: 'wrap', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif', boxSizing: 'border-box' }}>
+        <div style={{ width: '100%', maxWidth: 850, background: '#ffffff', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+          <style>{`
+            @media (min-width: 768px) {
+              .auth-container { flex-direction: row !important; }
+              .auth-banner { display: flex !important; }
+            }
+          `}</style>
           
-          {/* LADO IZQUIERDO (BANNER CON PASOS) */}
-          <div style={{ flex: '1 1 340px', background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)', padding: 40, color: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div>
-              <h2 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 10px 0' }}>Mis Gastos</h2>
-              <p style={{ fontSize: 14, color: '#e0e7ff', margin: '0 0 35px 0', lineHeight: 1.5 }}>Administra tus tarjetas y consumos en un solo lugar.</p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 14, flexShrink: 0 }}>1</div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Crea tu cuenta</h4>
-                    <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Ingresa con tu correo personal para mantener la información aislada y segura.</p>
+          <div className="auth-container" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            {/* LADO IZQUIERDO: BANNER (oculto en móviles muy pequeños para ahorrar espacio) */}
+            <div className="auth-banner" style={{ flex: '1 1 40%', background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)', padding: '32px 24px', color: '#ffffff', display: 'none', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <h2 style={{ fontSize: 26, fontWeight: 700, margin: '0 0 8px 0' }}>Mis Gastos</h2>
+                <p style={{ fontSize: 13, color: '#e0e7ff', margin: '0 0 28px 0', lineHeight: 1.5 }}>Administra tus tarjetas y consumos en un solo lugar.</p>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>1</div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Crea tu cuenta</h4>
+                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Ingresa para mantener tu información sincronizada.</p>
+                    </div>
                   </div>
-                </div>
 
-                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 14, flexShrink: 0 }}>2</div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Registra tu tarjeta</h4>
-                    <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Agrega tarjetas físicas o virtuales (Visa, Mastercard, Mercado Pago) identificando sus últimos dígitos.</p>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>2</div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Registra tu tarjeta</h4>
+                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Identifica tus plásticos o billeteras virtuales.</p>
+                    </div>
                   </div>
-                </div>
 
-                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 14, flexShrink: 0 }}>3</div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Filtra e Importa</h4>
-                    <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Selecciona cada tarjeta para analizar sus consumos o carga un CSV con tu historial completo de Mercado Pago.</p>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>3</div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Filtra e Importa</h4>
+                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Carga reportes CSV de Mercado Pago en segundos.</p>
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              <div style={{ marginTop: 24, fontSize: 12, color: '#c7d2fe' }}>
+                🛡️ Encriptación activa de Supabase
               </div>
             </div>
 
-            <div style={{ marginTop: 35, fontSize: 12, color: '#c7d2fe', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>🛡️</span> Datos protegidos por Supabase Auth
-            </div>
-          </div>
+            {/* LADO DERECHO: FORMULARIO */}
+            <div style={{ flex: '1 1 60%', padding: '32px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxSizing: 'border-box' }}>
+              <h3 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 6px 0' }}>
+                {authMode === 'login' && 'Iniciar Sesión'}
+                {authMode === 'signup' && 'Crear Cuenta'}
+                {authMode === 'reset' && 'Recuperar Contraseña'}
+              </h3>
+              <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 24px 0' }}>
+                {authMode === 'login' && 'Ingresa a tu panel de control'}
+                {authMode === 'signup' && 'Completa tus datos para registrarte'}
+                {authMode === 'reset' && 'Ingresa tu correo para recibir las instrucciones'}
+              </p>
 
-          {/* LADO DERECHO (FORMULARIO) */}
-          <div style={{ flex: '1 1 380px', padding: 40, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <h3 style={{ fontSize: 24, fontWeight: 700, color: '#111827', margin: '0 0 6px 0' }}>
-              {isSignUp ? 'Crear Cuenta' : 'Iniciar Sesión'}
-            </h3>
-            <p style={{ fontSize: 14, color: '#6b7280', margin: '0 0 28px 0' }}>
-              {isSignUp ? 'Ingresa tus datos para registrarte' : 'Ingresa a tu panel de control'}
-            </p>
+              <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
+                    CORREO ELECTRÓNICO
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="tu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
+                  />
+                </div>
 
-            <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
-                  CORREO ELECTRÓNICO
-                </label>
-                <input
-                  type="email"
-                  placeholder="tu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
-                />
+                {authMode !== 'reset' && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        CONTRASEÑA
+                      </label>
+                      {authMode === 'login' && (
+                        <span onClick={() => setAuthMode('reset')} style={{ fontSize: 12, color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>
+                          ¿Olvidaste tu contraseña?
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
+                    />
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  style={{ width: '100%', padding: '14px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 15, cursor: 'pointer', marginTop: 8 }}
+                >
+                  {authMode === 'login' && 'Ingresar'}
+                  {authMode === 'signup' && 'Registrarse'}
+                  {authMode === 'reset' && 'Enviar Correo de Recuperación'}
+                </button>
+              </form>
+
+              <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#4b5563', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {authMode === 'login' && (
+                  <div>¿No tienes cuenta aún? <span onClick={() => setAuthMode('signup')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Regístrate aquí</span></div>
+                )}
+                {authMode === 'signup' && (
+                  <div>¿Ya tienes cuenta? <span onClick={() => setAuthMode('login')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Inicia sesión aquí</span></div>
+                )}
+                {authMode === 'reset' && (
+                  <div><span onClick={() => setAuthMode('login')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>← Volver a Iniciar Sesión</span></div>
+                )}
               </div>
-
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
-                  CONTRASEÑA
-                </label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                style={{ width: '100%', padding: '14px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 15, cursor: 'pointer', marginTop: 10 }}
-              >
-                {isSignUp ? 'Registrarse' : 'Ingresar'}
-              </button>
-            </form>
-
-            <div style={{ textAlign: 'center', marginTop: 24, fontSize: 14, color: '#4b5563' }}>
-              {isSignUp ? (
-                <>¿Ya tienes cuenta? <span onClick={() => setIsSignUp(false)} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Inicia sesión aquí</span></>
-              ) : (
-                <>¿No tienes cuenta aun? <span onClick={() => setIsSignUp(true)} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Regístrate aquí</span></>
-              )}
             </div>
           </div>
 
@@ -348,112 +371,124 @@ export default function App() {
     );
   }
 
-  // --- VISTA INTERNA DEL PANEL ---
+  // --- VISTA INTERNA DEL PANEL RESPONSIVE ---
   return (
-    <div style={{ minHeight: '100vh', background: '#0b0f19', color: '#f3f4f6', fontFamily: 'Segoe UI, sans-serif', padding: '24px' }}>
+    <div style={{ minHeight: '100vh', background: '#0b0f19', color: '#f3f4f6', fontFamily: 'Segoe UI, sans-serif', padding: '16px', boxSizing: 'border-box' }}>
+      <style>{`
+        * { box-sizing: border-box; }
+        .form-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 20px; }
+        .form-row { display: flex; flex-direction: column; gap: 10px; }
+        .import-box { display: flex; flex-direction: column; gap: 12px; }
+        @media (min-width: 640px) {
+          .form-row { flex-direction: row; }
+          .import-box { flex-direction: row; align-items: center; justify-content: space-between; }
+        }
+        @media (min-width: 850px) {
+          .form-grid { grid-template-columns: 1fr 1fr; }
+        }
+      `}</style>
+
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
         
-        {/* HEADER */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 20, borderBottom: '1px solid #1f2937', marginBottom: 25 }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#fff' }}>Mis Gastos</h1>
-            <span style={{ fontSize: 13, color: '#9ca3af' }}>{session.user.email}</span>
+        {/* HEADER ADAPTATIVO */}
+        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 16, borderBottom: '1px solid #1f2937', marginBottom: 20, gap: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Mis Gastos</h1>
+            <span style={{ fontSize: 12, color: '#9ca3af', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.user.email}</span>
           </div>
-          <button onClick={handleLogout} style={{ background: '#1f2937', color: '#9ca3af', border: '1px solid #374151', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 14 }}>Cerrar Sesión</button>
+          <button onClick={handleLogout} style={{ background: '#1f2937', color: '#9ca3af', border: '1px solid #374151', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>Salir</button>
         </div>
 
-        {/* SELECTOR E IMPORTADOR DE MERCADO PAGO */}
-        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 20, marginBottom: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15, marginBottom: 15 }}>
-            <div>
-              <span style={{ fontSize: 12, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>TARJETA SELECCIONADA:</span>
-              <div style={{ marginTop: 6 }}>
-                <select value={selectedCardId} onChange={e => setSelectedCardId(e.target.value)} style={{ background: '#0b0f19', color: '#fff', border: '1px solid #374151', padding: '10px 14px', borderRadius: 8, fontSize: 15, outline: 'none', cursor: 'pointer' }}>
-                  <option value="all">Todas las tarjetas</option>
-                  {cards.map(c => (
-                    <option key={c.id} value={c.id}>{c.brand} **** {c.last_digits} ({c.holder})</option>
-                  ))}
-                </select>
-              </div>
+        {/* TARJETA SELECCIONADA E IMPORTADOR */}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div style={{ width: '100%', maxWidth: 350 }}>
+              <span style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>TARJETA SELECCIONADA:</span>
+              <select value={selectedCardId} onChange={e => setSelectedCardId(e.target.value)} style={{ width: '100%', background: '#0b0f19', color: '#fff', border: '1px solid #374151', padding: '10px', borderRadius: 8, fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+                <option value="all">Todas las tarjetas</option>
+                {cards.map(c => (
+                  <option key={c.id} value={c.id}>{c.brand} **** {c.last_digits} ({c.holder})</option>
+                ))}
+              </select>
             </div>
             <div>
-              <span style={{ fontSize: 12, color: '#9ca3af' }}>TOTAL FILTRADO</span>
-              <h2 style={{ margin: 0, color: '#818cf8', fontSize: 28, fontWeight: 700 }}>${totalSpent.toFixed(2)}</h2>
+              <span style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>TOTAL FILTRADO</span>
+              <h2 style={{ margin: 0, color: '#818cf8', fontSize: 24, fontWeight: 700 }}>${totalSpent.toFixed(2)}</h2>
             </div>
           </div>
 
-          <div style={{ borderTop: '1px solid #1f2937', paddingTop: 15, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 15 }}>
+          <div className="import-box" style={{ borderTop: '1px solid #1f2937', paddingTop: 14 }}>
             <div>
-              <h4 style={{ margin: 0, color: '#818cf8', fontSize: 15 }}>📥 Importar Historial de Mercado Pago (.CSV)</h4>
-              <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#9ca3af' }}>Carga el reporte exportado para asociar automáticamente todos los consumos a la tarjeta elegida.</p>
+              <h4 style={{ margin: 0, color: '#818cf8', fontSize: 14 }}>📥 Importar Mercado Pago (.CSV)</h4>
+              <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#9ca3af' }}>Asocia automáticamente los consumos a la tarjeta elegida.</p>
             </div>
-            <label style={{ background: importing ? '#4b5563' : '#4f46e5', color: '#fff', padding: '10px 18px', borderRadius: 8, fontWeight: 600, cursor: importing ? 'not-allowed' : 'pointer', fontSize: 14 }}>
+            <label style={{ background: importing ? '#4b5563' : '#4f46e5', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 600, cursor: importing ? 'not-allowed' : 'pointer', fontSize: 13, textAlign: 'center', whiteSpace: 'nowrap' }}>
               {importing ? 'Importando...' : '⬆️ Seleccionar CSV'}
               <input type="file" accept=".csv" onChange={handleImportCSV} disabled={importing} style={{ display: 'none' }} />
             </label>
           </div>
         </div>
 
-        {/* CONTENEDOR DE FORMULARIOS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20, marginBottom: 24 }}>
+        {/* CONTENEDOR DE FORMULARIOS RESPONSIVE */}
+        <div className="form-grid">
           {/* REGISTRAR TARJETA */}
-          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 20 }}>
-            <h3 style={{ margin: '0 0 15px 0', fontSize: 16, color: '#fff' }}>Registrar Tarjeta</h3>
-            <form onSubmit={handleAddCard} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input type="text" placeholder="Titular" value={newCardHolder} onChange={e => setNewCardHolder(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', outline: 'none' }} />
-              <div style={{ display: 'flex', gap: 10 }}>
-                <input type="text" placeholder="Últimos 4 dígitos" maxLength={4} value={newCardDigits} onChange={e => setNewCardDigits(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none' }} />
-                <select value={newCardBrand} onChange={e => setNewCardBrand(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none' }}>
+          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16 }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Registrar Tarjeta</h3>
+            <form onSubmit={handleAddCard} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input type="text" placeholder="Titular" value={newCardHolder} onChange={e => setNewCardHolder(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', outline: 'none', fontSize: 14 }} />
+              <div className="form-row">
+                <input type="text" placeholder="Últimos 4 dígitos" maxLength={4} value={newCardDigits} onChange={e => setNewCardDigits(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }} />
+                <select value={newCardBrand} onChange={e => setNewCardBrand(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }}>
                   <option value="Visa">Visa</option>
                   <option value="Mastercard">Mastercard</option>
                   <option value="Mercado Pago">Mercado Pago</option>
                 </select>
               </div>
-              <button type="submit" style={{ padding: 10, background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Guardar Tarjeta</button>
+              <button type="submit" style={{ padding: 10, background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Guardar Tarjeta</button>
             </form>
           </div>
 
           {/* GASTO MANUAL */}
-          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 20 }}>
-            <h3 style={{ margin: '0 0 15px 0', fontSize: 16, color: '#fff' }}>Cargar Gasto Manual</h3>
-            <form onSubmit={handleAddExpense} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <input type="text" placeholder="Concepto" value={description} onChange={e => setDescription(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 2, outline: 'none' }} />
-                <input type="number" step="0.01" placeholder="Monto" value={amount} onChange={e => setAmount(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none' }} />
+          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16 }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Cargar Gasto Manual</h3>
+            <form onSubmit={handleAddExpense} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="form-row">
+                <input type="text" placeholder="Concepto" value={description} onChange={e => setDescription(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 2, outline: 'none', fontSize: 14 }} />
+                <input type="number" step="0.01" placeholder="Monto" value={amount} onChange={e => setAmount(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }} />
               </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <select value={category} onChange={e => setCategory(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none' }}>
+              <div className="form-row">
+                <select value={category} onChange={e => setCategory(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }}>
                   <option value="General">General</option>
                   <option value="Comida">Comida</option>
                   <option value="Servicios">Servicios</option>
                   <option value="Entretenimiento">Entretenimiento</option>
                 </select>
-                <select value={manualCardId} onChange={e => setManualCardId(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none' }}>
+                <select value={manualCardId} onChange={e => setManualCardId(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }}>
                   {cards.map(c => (
                     <option key={c.id} value={c.id}>{c.brand} **** {c.last_digits}</option>
                   ))}
                 </select>
               </div>
-              <button type="submit" style={{ padding: 10, background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Guardar Gasto</button>
+              <button type="submit" style={{ padding: 10, background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Guardar Gasto</button>
             </form>
           </div>
         </div>
 
-        {/* TABLA DE CONSUMOS */}
-        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 20 }}>
-          <h3 style={{ margin: '0 0 15px 0', fontSize: 16, color: '#fff' }}>Historial de Consumos</h3>
+        {/* TABLA DE CONSUMOS CON SCROLL HORIZONTAL */}
+        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16 }}>
+          <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Historial de Consumos</h3>
           {filteredExpenses.length === 0 ? (
-            <p style={{ color: '#9ca3af', fontSize: 14 }}>Sin registros.</p>
+            <p style={{ color: '#9ca3af', fontSize: 13, margin: 0 }}>Sin registros.</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 14 }}>
+            <div style={{ overflowX: 'auto', width: '100%' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13, minWidth: 500 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #1f2937', color: '#9ca3af' }}>
-                    <th style={{ padding: 12 }}>Descripción</th>
-                    <th style={{ padding: 12 }}>Monto</th>
-                    <th style={{ padding: 12 }}>Categoría</th>
-                    <th style={{ padding: 12 }}>Tarjeta</th>
-                    <th style={{ padding: 12, textAlign: 'right' }}>Acción</th>
+                    <th style={{ padding: '10px 8px' }}>Descripción</th>
+                    <th style={{ padding: '10px 8px' }}>Monto</th>
+                    <th style={{ padding: '10px 8px' }}>Categoría</th>
+                    <th style={{ padding: '10px 8px' }}>Tarjeta</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'right' }}>Acción</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -461,12 +496,12 @@ export default function App() {
                     const card = cards.find(c => c.id === exp.card_id);
                     return (
                       <tr key={exp.id} style={{ borderBottom: '1px solid #1f2937' }}>
-                        <td style={{ padding: 12, color: '#fff' }}>{exp.description}</td>
-                        <td style={{ padding: 12, color: '#f87171', fontWeight: 600 }}>${(Number(exp.amount) || 0).toFixed(2)}</td>
-                        <td style={{ padding: 12 }}><span style={{ background: '#1f2937', color: '#d1d5db', padding: '4px 8px', borderRadius: 4, fontSize: 12 }}>{exp.category}</span></td>
-                        <td style={{ padding: 12, color: '#9ca3af' }}>{card ? `${card.brand} (**** ${card.last_digits})` : 'N/A'}</td>
-                        <td style={{ padding: 12, textAlign: 'right' }}>
-                          <button onClick={() => handleDeleteExpense(exp.id)} style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 13 }}>Eliminar</button>
+                        <td style={{ padding: '10px 8px', color: '#fff' }}>{exp.description}</td>
+                        <td style={{ padding: '10px 8px', color: '#f87171', fontWeight: 600 }}>${(Number(exp.amount) || 0).toFixed(2)}</td>
+                        <td style={{ padding: '10px 8px' }}><span style={{ background: '#1f2937', color: '#d1d5db', padding: '3px 6px', borderRadius: 4, fontSize: 11 }}>{exp.category}</span></td>
+                        <td style={{ padding: '10px 8px', color: '#9ca3af' }}>{card ? `${card.brand} (**** ${card.last_digits})` : 'N/A'}</td>
+                        <td style={{ padding: '10px 8px', textAlign: 'right' }}>
+                          <button onClick={() => handleDeleteExpense(exp.id)} style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 12 }}>Eliminar</button>
                         </td>
                       </tr>
                     );

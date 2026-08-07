@@ -26,6 +26,11 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'reset'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
+  // Estado para actualización de contraseña requerida tras recuperar
+  const [isRecoverySession, setIsRecoverySession] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   const [cards, setCards] = useState([]);
   const [selectedCardId, setSelectedCardId] = useState('all');
@@ -45,12 +50,21 @@ export default function App() {
   const [importing, setImporting] = useState(false);
 
   useEffect(() => {
+    // Verificar si en la URL viene el hash de recuperación de contraseña
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      setIsRecoverySession(true);
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data?.session || null);
       setLoading(false);
     }).catch(() => setLoading(false));
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoverySession(true);
+      }
       setSession(session);
     });
 
@@ -94,7 +108,31 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => supabase.auth.signOut();
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      alert('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+    setUpdatingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setUpdatingPassword(false);
+
+    if (error) {
+      alert('Error al actualizar contraseña: ' + error.message);
+    } else {
+      alert('¡Contraseña actualizada con éxito! Ya puedes usar esta contraseña para iniciar sesión.');
+      setIsRecoverySession(false);
+      setNewPassword('');
+      // Limpia el hash de la URL sin recargar la página
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsRecoverySession(false);
+    supabase.auth.signOut();
+  };
 
   const fetchCards = async () => {
     const { data, error } = await supabase.from('cards').select('*');
@@ -253,7 +291,6 @@ export default function App() {
           `}</style>
           
           <div className="auth-container" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-            {/* LADO IZQUIERDO: BANNER (oculto en móviles muy pequeños para ahorrar espacio) */}
             <div className="auth-banner" style={{ flex: '1 1 40%', background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)', padding: '32px 24px', color: '#ffffff', display: 'none', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <h2 style={{ fontSize: 26, fontWeight: 700, margin: '0 0 8px 0' }}>Mis Gastos</h2>
@@ -291,7 +328,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* LADO DERECHO: FORMULARIO */}
             <div style={{ flex: '1 1 60%', padding: '32px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxSizing: 'border-box' }}>
               <h3 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 6px 0' }}>
                 {authMode === 'login' && 'Iniciar Sesión'}
@@ -390,6 +426,33 @@ export default function App() {
 
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
         
+        {/* MODAL/BANNER PARA REESTABLECER CONTRASEÑA */}
+        {isRecoverySession && (
+          <div style={{ background: '#312e81', border: '1px solid #6366f1', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 6px 0', fontSize: 16, color: '#fff' }}>🔑 Establecer Nueva Contraseña</h3>
+            <p style={{ margin: '0 0 12px 0', fontSize: 13, color: '#c7d2fe' }}>
+              Has ingresado mediante un enlace de recuperación. Ingresa tu nueva contraseña para guardarla de forma permanente:
+            </p>
+            <form onSubmit={handleUpdatePassword} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <input
+                type="password"
+                placeholder="Escribe tu nueva contraseña"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                style={{ flex: 1, minWidth: 200, padding: 10, borderRadius: 8, border: '1px solid #4f46e5', background: '#0b0f19', color: '#fff', fontSize: 14, outline: 'none' }}
+              />
+              <button
+                type="submit"
+                disabled={updatingPassword}
+                style={{ padding: '10px 18px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
+              >
+                {updatingPassword ? 'Guardando...' : 'Guardar Contraseña'}
+              </button>
+            </form>
+          </div>
+        )}
+
         {/* HEADER ADAPTATIVO */}
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 16, borderBottom: '1px solid #1f2937', marginBottom: 20, gap: 10 }}>
           <div style={{ minWidth: 0 }}>

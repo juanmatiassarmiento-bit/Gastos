@@ -140,7 +140,8 @@ export default function App() {
   }
 
   const cargarTarjetas = async () => {
-    if (!user) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) return
 
     const { data, error } = await supabase
       .from('tarjetas')
@@ -179,40 +180,42 @@ export default function App() {
     e.preventDefault()
     const digits = normalizeCardNumber(cardForm.number)
 
-    if (!user) {
+    // Verificar sesión actualizada antes de insertar
+    const { data: { session } } = await supabase.auth.getSession()
+    const currentUser = session?.user || user
+
+    if (!currentUser) {
       alert('Debes iniciar sesión para guardar tarjetas.')
       return
     }
 
-    if (!cardForm.holder || digits.length < 12 || !cardForm.expiry) {
+    if (!cardForm.holder || digits.length < 12) {
       alert('Completa los datos de la tarjeta correctamente')
       return
     }
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('tarjetas')
       .insert([
         {
-          user_id: user.id,
+          user_id: currentUser.id,
           nombre: cardForm.holder,
           ultimos_digitos: digits.slice(-4),
           tipo: cardForm.brand,
-          color: '',
+          color: 'indigo',
           es_activa: true
         }
       ])
-      .select()
-      .single()
 
     if (error) {
       console.error('Error guardando tarjeta:', error)
-      alert('No se pudo guardar la tarjeta.')
+      alert('No se pudo guardar la tarjeta: ' + error.message)
       return
     }
 
-    setCards([data, ...cards])
     addHolderSuggestion(cardForm.holder)
     setCardForm({ holder: '', number: '', expiry: '', cvv: '', brand: 'Desconocida' })
+    await cargarTarjetas()
   }
 
   const eliminarTarjeta = async (id) => {
@@ -237,9 +240,7 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      if (!session?.user) {
-        setLoading(false)
-      }
+      setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -252,7 +253,6 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    cargarTarjetas()
     loadSuggestions()
   }, [])
 
@@ -367,6 +367,7 @@ export default function App() {
   async function logout() {
     await supabase.auth.signOut()
     setGastos([])
+    setCards([])
   }
 
   const totalGastos = gastos.reduce((sum, g) => sum + g.monto, 0)
@@ -432,20 +433,13 @@ export default function App() {
               <code className="block break-words bg-slate-100 p-3 rounded-lg text-sm text-slate-700">
                 {serverUrl}
               </code>
-              <p className="mt-2 text-xs text-gray-500">
-                Si ves localhost, usa en tu teléfono la IP local de tu PC, por ejemplo <strong>http://192.168.x.x:5173</strong>.
-              </p>
             </div>
-            {qrCodeUrl ? (
+            {qrCodeUrl && (
               <img
                 src={qrCodeUrl}
                 alt="QR para abrir en el teléfono"
                 className="w-40 h-40 rounded-xl border border-slate-200"
               />
-            ) : (
-              <div className="rounded-xl border border-dashed border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-700">
-                Si tu navegador está en localhost, genera la URL de tu PC en la red local y escanéala desde el móvil.
-              </div>
             )}
           </div>
         </div>
@@ -713,11 +707,11 @@ function Login({ setUser }) {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ email, password })
+        const { error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
         alert('Verifica tu email para confirmar la cuenta')
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
         const { data: { user } } = await supabase.auth.getUser()
         setUser(user)
@@ -771,4 +765,4 @@ function Login({ setUser }) {
       </div>
     </div>
   )
-}
+} 

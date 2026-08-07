@@ -236,21 +236,25 @@ export default function App() {
 
   // Chequear autenticación
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+  // Captura la sesión inicial si viene desde la confirmación de email
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setUser(session?.user ?? null)
+    setLoading(false)
+  })
+
+  // Escucha cambios de autenticación en tiempo real (por ejemplo cuando se confirma el correo)
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
       setUser(session?.user ?? null)
-      if (!session?.user) {
-        setLoading(false)
+      if (_event === 'SIGNED_IN') {
+        // Limpia los parámetros de token/código de la barra de direcciones para dejar la URL limpia
+        window.history.replaceState({}, document.title, window.location.pathname)
       }
-    })
+    }
+  )
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null)
-      }
-    )
-
-    return () => subscription?.unsubscribe()
-  }, [])
+  return () => subscription?.unsubscribe()
+}, [])
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -716,26 +720,32 @@ function Login({ setUser }) {
   const [isSignUp, setIsSignUp] = useState(false)
 
   async function handleAuth(e) {
-    e.preventDefault()
-    setLoading(true)
+  e.preventDefault()
+  setLoading(true)
 
-    try {
-      if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ email, password })
-        if (error) throw error
-        alert('Verifica tu email para confirmar la cuenta')
-      } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) throw error
-        const { data: { user } } = await supabase.auth.getUser()
-        setUser(user)
-      }
-    } catch (error) {
-      alert(error.message)
-    } finally {
-      setLoading(false)
+  try {
+    if (isSignUp) {
+      // Pasamos redirectTo para indicarle a Supabase a qué URL devolver al usuario
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          emailRedirectTo: window.location.origin // Redirige a la URL actual (ej. http://192.168.1.41:5173 o tu dominio)
+        }
+      })
+      if (error) throw error
+      alert('Te enviamos un correo. Por favor, revisa tu bandeja de entrada para confirmar la cuenta.')
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+      setUser(data.user)
     }
+  } catch (error) {
+    alert(error.message)
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-indigo-800 flex items-center justify-center p-4">

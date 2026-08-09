@@ -205,7 +205,7 @@ export default function App() {
 
     const lastDigits = cardNumber.slice(-4);
 
-    // Objeto compatible tanto con esquemas de DB viejos como nuevos
+    // Intentamos guardar con todos los campos
     const cardPayload = {
       holder: newCardHolder,
       last_digits: lastDigits,
@@ -215,7 +215,19 @@ export default function App() {
       user_id: session?.user?.id
     };
 
-    const { data, error } = await supabase.from('cards').insert([cardPayload]).select();
+    let { data, error } = await supabase.from('cards').insert([cardPayload]).select();
+
+    // Si ocurre un error de columna faltante en Supabase, reintentamos con los campos esenciales
+    if (error && error.message.includes('column')) {
+      const fallbackPayload = {
+        last_digits: lastDigits,
+        brand: detectedBrand,
+        user_id: session?.user?.id
+      };
+      const retry = await supabase.from('cards').insert([fallbackPayload]).select();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (!error && data) {
       setCards([...cards, data[0]]);
@@ -225,8 +237,9 @@ export default function App() {
       setExpDate('');
       setCvv('');
       setDetectedBrand('Desconocida');
+      alert('¡Tarjeta guardada con éxito!');
     } else {
-      alert(error?.message || 'Error al agregar tarjeta');
+      alert('Error al guardar la tarjeta: ' + (error?.message || 'Error desconocido'));
     }
   };
 

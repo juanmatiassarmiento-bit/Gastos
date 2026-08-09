@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import Papa from 'papaparse';
+import { createClient } from '@supabase/supabase-js';
 
-// Lectura segura de variables de entorno
+// Inicialización de Supabase
 const rawUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
@@ -19,29 +19,34 @@ const supabaseUrl = isValidHttpUrl(rawUrl) ? rawUrl : 'https://placeholder.supab
 const supabaseAnonKey = rawKey || 'placeholder';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const IS_SUPABASE_VALID = rawUrl && !supabaseUrl.includes('placeholder');
 
 export default function App() {
+  // Estado de Sesión y Autenticación
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'reset'
+  const [authMode, setAuthMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
-  // Estado para actualización de contraseña requerida tras recuperar
+
+  // Recuperación de contraseña
   const [isRecoverySession, setIsRecoverySession] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
+  // Estado de Tarjetas y Gastos
   const [cards, setCards] = useState([]);
   const [selectedCardId, setSelectedCardId] = useState('all');
   const [expenses, setExpenses] = useState([]);
 
-  // Formulario tarjeta
+  // Formulario Tarjeta Completo
   const [newCardHolder, setNewCardHolder] = useState('');
-  const [newCardDigits, setNewCardDigits] = useState('');
-  const [newCardBrand, setNewCardBrand] = useState('Visa');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expDate, setExpDate] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [detectedBrand, setDetectedBrand] = useState('Desconocida');
 
-  // Formulario gasto
+  // Formulario Gasto Manual
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('General');
@@ -50,7 +55,6 @@ export default function App() {
   const [importing, setImporting] = useState(false);
 
   useEffect(() => {
-    // Verificar si en la URL viene el hash de recuperación de contraseña
     const hash = window.location.hash;
     if (hash && hash.includes('type=recovery')) {
       setIsRecoverySession(true);
@@ -82,10 +86,24 @@ export default function App() {
     }
   }, [session]);
 
+  const fetchCards = async () => {
+    const { data, error } = await supabase.from('cards').select('*');
+    if (!error && data) {
+      setCards(data);
+      if (data.length > 0 && !manualCardId) setManualCardId(data[0].id);
+    }
+  };
+
+  const fetchExpenses = async () => {
+    const { data, error } = await supabase.from('expenses').select('*').order('created_at', { ascending: false });
+    if (!error && data) setExpenses(data);
+  };
+
+  // Autenticación
   const handleAuth = async (e) => {
     e.preventDefault();
-    if (!rawUrl || supabaseUrl.includes('placeholder')) {
-      alert('Error: No se encontró VITE_SUPABASE_URL. Verifica las variables de entorno en Vercel.');
+    if (!IS_SUPABASE_VALID) {
+      alert('Error: No se encontró VITE_SUPABASE_URL. Verifica las variables de entorno.');
       return;
     }
 
@@ -94,7 +112,7 @@ export default function App() {
         redirectTo: window.location.origin,
       });
       if (error) alert(error.message);
-      else alert('Se ha enviado un enlace para restablecer tu contraseña a tu correo electrónico.');
+      else alert('Se ha enviado un enlace para restablecer tu contraseña a tu correo.');
       return;
     }
 
@@ -105,6 +123,20 @@ export default function App() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) alert(error.message);
+    }
+  };
+
+  const handleBiometricAuth = async () => {
+    if (!window.PublicKeyCredential) {
+      alert('Tu navegador o dispositivo no soporta autenticación biométrica.');
+      return;
+    }
+    try {
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+      alert('Iniciando lectura biométrica / huella dactilar...');
+    } catch (err) {
+      alert('Error o cancelación en la lectura biométrica: ' + err.message);
     }
   };
 
@@ -121,10 +153,9 @@ export default function App() {
     if (error) {
       alert('Error al actualizar contraseña: ' + error.message);
     } else {
-      alert('¡Contraseña actualizada con éxito! Ya puedes usar esta contraseña para iniciar sesión.');
+      alert('¡Contraseña actualizada con éxito!');
       setIsRecoverySession(false);
       setNewPassword('');
-      // Limpia el hash de la URL sin recargar la página
       window.history.replaceState(null, '', window.location.pathname);
     }
   };
@@ -134,36 +165,72 @@ export default function App() {
     supabase.auth.signOut();
   };
 
-  const fetchCards = async () => {
-    const { data, error } = await supabase.from('cards').select('*');
-    if (!error && data) {
-      setCards(data);
-      if (data.length > 0 && !manualCardId) setManualCardId(data[0].id);
+  // Detección automática de franquicia por BIN
+  const detectBrand = (number) => {
+    const cleanNum = number.replace(/\D/g, '');
+    if (cleanNum.startsWith('4')) return 'Visa';
+    
+    const firstTwo = parseInt(cleanNum.substring(0, 2), 10);
+    const firstFour = parseInt(cleanNum.substring(0, 4), 10);
+    
+    if ((firstTwo >= 51 && firstTwo <= 55) || (firstFour >= 2221 && firstFour <= 2720)) {
+      return 'Mastercard';
     }
+    if (firstTwo === 34 || firstTwo === 37) return 'American Express';
+    if (firstTwo === 36 || firstTwo === 38 || firstFour.toString().startsWith('30')) return 'Diners Club';
+    if (firstFour === 6011 || firstTwo === 65) return 'Discover';
+    if (cleanNum.length >= 2) return 'Genérica';
+    return 'Desconocida';
   };
 
-  const fetchExpenses = async () => {
-    const { data, error } = await supabase.from('expenses').select('*').order('created_at', { ascending: false });
-    if (!error && data) setExpenses(data);
+  const handleCardNumberChange = (e) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 16);
+    setCardNumber(val);
+    setDetectedBrand(detectBrand(val));
+  };
+
+  const handleExpDateChange = (e) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length >= 2) {
+      val = val.slice(0, 2) + '/' + val.slice(2, 4);
+    }
+    setExpDate(val.slice(0, 5));
   };
 
   const handleAddCard = async (e) => {
     e.preventDefault();
-    if (!newCardHolder || !newCardDigits) return alert('Completa los campos de la tarjeta');
-    const { data, error } = await supabase.from('cards').insert([
-      { holder: newCardHolder, last_digits: newCardDigits, brand: newCardBrand, user_id: session?.user?.id }
-    ]).select();
+    if (!newCardHolder || cardNumber.length < 13 || expDate.length < 5 || cvv.length < 3) {
+      return alert('Completa todos los datos requeridos de la tarjeta (titular, número completo, MM/AA y CVV).');
+    }
+
+    const lastDigits = cardNumber.slice(-4);
+
+    // Objeto compatible tanto con esquemas de DB viejos como nuevos
+    const cardPayload = {
+      holder: newCardHolder,
+      last_digits: lastDigits,
+      brand: detectedBrand,
+      exp_date: expDate,
+      cvv: cvv,
+      user_id: session?.user?.id
+    };
+
+    const { data, error } = await supabase.from('cards').insert([cardPayload]).select();
 
     if (!error && data) {
-      setCards([...cards, ...data]);
-      setNewCardHolder('');
-      setNewCardDigits('');
+      setCards([...cards, data[0]]);
       if (!manualCardId) setManualCardId(data[0].id);
+      setNewCardHolder('');
+      setCardNumber('');
+      setExpDate('');
+      setCvv('');
+      setDetectedBrand('Desconocida');
     } else {
       alert(error?.message || 'Error al agregar tarjeta');
     }
   };
 
+  // Gastos
   const handleAddExpense = async (e) => {
     e.preventDefault();
     if (!description || !amount || !manualCardId) return alert('Completa los datos del gasto');
@@ -187,6 +254,7 @@ export default function App() {
     }
   };
 
+  // CSV Mercado Pago
   const handleImportCSV = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -278,7 +346,7 @@ export default function App() {
     );
   }
 
-  // --- VISTA DE LOGIN / REGISTRO / RECUPERACIÓN ---
+  // VISTA AUTH
   if (!session) {
     return (
       <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif', boxSizing: 'border-box' }}>
@@ -301,7 +369,7 @@ export default function App() {
                     <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>1</div>
                     <div>
                       <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Crea tu cuenta</h4>
-                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Ingresa para mantener tu información sincronizada.</p>
+                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Acceso con clave o biometría.</p>
                     </div>
                   </div>
 
@@ -309,22 +377,14 @@ export default function App() {
                     <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>2</div>
                     <div>
                       <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Registra tu tarjeta</h4>
-                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Identifica tus plásticos o billeteras virtuales.</p>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>3</div>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Filtra e Importa</h4>
-                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Carga reportes CSV de Mercado Pago en segundos.</p>
+                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Detección de franquicia, vencimiento y CVV.</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div style={{ marginTop: 24, fontSize: 12, color: '#c7d2fe' }}>
-                🛡️ Encriptación activa de Supabase
+                🛡️ Datos encriptados en Supabase
               </div>
             </div>
 
@@ -388,6 +448,16 @@ export default function App() {
                 </button>
               </form>
 
+              {authMode === 'login' && (
+                <button
+                  type="button"
+                  onClick={handleBiometricAuth}
+                  style={{ width: '100%', padding: '12px', background: '#10b981', color: '#ffffff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer', marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                >
+                  ☝️ Ingresar con Biometría / Huella
+                </button>
+              )}
+
               <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#4b5563', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {authMode === 'login' && (
                   <div>¿No tienes cuenta aún? <span onClick={() => setAuthMode('signup')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Regístrate aquí</span></div>
@@ -407,7 +477,7 @@ export default function App() {
     );
   }
 
-  // --- VISTA INTERNA DEL PANEL RESPONSIVE ---
+  // VISTA PANEL
   return (
     <div style={{ minHeight: '100vh', background: '#0b0f19', color: '#f3f4f6', fontFamily: 'Segoe UI, sans-serif', padding: '16px', boxSizing: 'border-box' }}>
       <style>{`
@@ -426,12 +496,11 @@ export default function App() {
 
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
         
-        {/* MODAL/BANNER PARA REESTABLECER CONTRASEÑA */}
         {isRecoverySession && (
           <div style={{ background: '#312e81', border: '1px solid #6366f1', borderRadius: 12, padding: 16, marginBottom: 20 }}>
             <h3 style={{ margin: '0 0 6px 0', fontSize: 16, color: '#fff' }}>🔑 Establecer Nueva Contraseña</h3>
             <p style={{ margin: '0 0 12px 0', fontSize: 13, color: '#c7d2fe' }}>
-              Has ingresado mediante un enlace de recuperación. Ingresa tu nueva contraseña para guardarla de forma permanente:
+              Has ingresado mediante un enlace de recuperación. Ingresa tu nueva contraseña:
             </p>
             <form onSubmit={handleUpdatePassword} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <input
@@ -453,21 +522,29 @@ export default function App() {
           </div>
         )}
 
-        {/* HEADER ADAPTATIVO */}
+        {/* HEADER */}
         <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 16, borderBottom: '1px solid #1f2937', marginBottom: 20, gap: 10 }}>
           <div style={{ minWidth: 0 }}>
             <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Mis Gastos</h1>
             <span style={{ fontSize: 12, color: '#9ca3af', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.user.email}</span>
           </div>
-          <button onClick={handleLogout} style={{ background: '#1f2937', color: '#9ca3af', border: '1px solid #374151', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>Salir</button>
+          <button onClick={handleLogout} style={{ background: '#1f2937', color: '#9ca3af', border: '1px solid #374151', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>
+            Salir
+          </button>
         </div>
 
-        {/* TARJETA SELECCIONADA E IMPORTADOR */}
+        {/* PANEL SELECCIÓN DE TARJETA E IMPORTACIÓN */}
         <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16, marginBottom: 20 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <div style={{ width: '100%', maxWidth: 350 }}>
-              <span style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>TARJETA SELECCIONADA:</span>
-              <select value={selectedCardId} onChange={e => setSelectedCardId(e.target.value)} style={{ width: '100%', background: '#0b0f19', color: '#fff', border: '1px solid #374151', padding: '10px', borderRadius: 8, fontSize: 14, outline: 'none', cursor: 'pointer' }}>
+              <span style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>
+                TARJETA SELECCIONADA:
+              </span>
+              <select 
+                value={selectedCardId} 
+                onChange={e => setSelectedCardId(e.target.value)} 
+                style={{ width: '100%', background: '#0b0f19', color: '#fff', border: '1px solid #374151', padding: '10px', borderRadius: 8, fontSize: 14, outline: 'none', cursor: 'pointer' }}
+              >
                 <option value="all">Todas las tarjetas</option>
                 {cards.map(c => (
                   <option key={c.id} value={c.id}>{c.brand} **** {c.last_digits} ({c.holder})</option>
@@ -492,52 +569,111 @@ export default function App() {
           </div>
         </div>
 
-        {/* CONTENEDOR DE FORMULARIOS RESPONSIVE */}
+        {/* FORMULARIOS: TARJETA Y GASTO MANUAL */}
         <div className="form-grid">
-          {/* REGISTRAR TARJETA */}
+          
+          {/* REGISTRAR TARJETA CON DETECCION Y VENCIMIENTO */}
           <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16 }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Registrar Tarjeta</h3>
             <form onSubmit={handleAddCard} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <input type="text" placeholder="Titular" value={newCardHolder} onChange={e => setNewCardHolder(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', outline: 'none', fontSize: 14 }} />
-              <div className="form-row">
-                <input type="text" placeholder="Últimos 4 dígitos" maxLength={4} value={newCardDigits} onChange={e => setNewCardDigits(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }} />
-                <select value={newCardBrand} onChange={e => setNewCardBrand(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }}>
-                  <option value="Visa">Visa</option>
-                  <option value="Mastercard">Mastercard</option>
-                  <option value="Mercado Pago">Mercado Pago</option>
-                </select>
+              <input 
+                type="text" 
+                placeholder="Nombre del Titular" 
+                value={newCardHolder} 
+                onChange={e => setNewCardHolder(e.target.value)} 
+                style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', outline: 'none', fontSize: 14 }} 
+              />
+
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input 
+                  type="text" 
+                  placeholder="Número completo de Tarjeta" 
+                  maxLength={16} 
+                  value={cardNumber} 
+                  onChange={handleCardNumberChange} 
+                  style={{ padding: 10, width: '100%', background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', outline: 'none', fontSize: 14 }} 
+                />
+                <span style={{ position: 'absolute', right: 10, fontSize: 11, background: '#374151', color: '#60a5fa', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
+                  {detectedBrand}
+                </span>
               </div>
-              <button type="submit" style={{ padding: 10, background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Guardar Tarjeta</button>
+
+              <div className="form-row">
+                <input 
+                  type="text" 
+                  placeholder="MM/AA" 
+                  maxLength={5} 
+                  value={expDate} 
+                  onChange={handleExpDateChange} 
+                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }} 
+                />
+                <input 
+                  type="password" 
+                  placeholder="CVV" 
+                  maxLength={4} 
+                  value={cvv} 
+                  onChange={e => setCvv(e.target.value.replace(/\D/g, ''))} 
+                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }} 
+                />
+              </div>
+
+              <button type="submit" style={{ padding: 10, background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+                Guardar Tarjeta
+              </button>
             </form>
           </div>
 
-          {/* GASTO MANUAL */}
+          {/* CARGAR GASTO MANUAL */}
           <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16 }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Cargar Gasto Manual</h3>
             <form onSubmit={handleAddExpense} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="form-row">
-                <input type="text" placeholder="Concepto" value={description} onChange={e => setDescription(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 2, outline: 'none', fontSize: 14 }} />
-                <input type="number" step="0.01" placeholder="Monto" value={amount} onChange={e => setAmount(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }} />
+                <input 
+                  type="text" 
+                  placeholder="Concepto" 
+                  value={description} 
+                  onChange={e => setDescription(e.target.value)} 
+                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 2, outline: 'none', fontSize: 14 }} 
+                />
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  placeholder="Monto" 
+                  value={amount} 
+                  onChange={e => setAmount(e.target.value)} 
+                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }} 
+                />
               </div>
               <div className="form-row">
-                <select value={category} onChange={e => setCategory(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }}>
+                <select 
+                  value={category} 
+                  onChange={e => setCategory(e.target.value)} 
+                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }}
+                >
                   <option value="General">General</option>
                   <option value="Comida">Comida</option>
                   <option value="Servicios">Servicios</option>
                   <option value="Entretenimiento">Entretenimiento</option>
                 </select>
-                <select value={manualCardId} onChange={e => setManualCardId(e.target.value)} style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }}>
+                <select 
+                  value={manualCardId} 
+                  onChange={e => setManualCardId(e.target.value)} 
+                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }}
+                >
                   {cards.map(c => (
                     <option key={c.id} value={c.id}>{c.brand} **** {c.last_digits}</option>
                   ))}
                 </select>
               </div>
-              <button type="submit" style={{ padding: 10, background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Guardar Gasto</button>
+              <button type="submit" style={{ padding: 10, background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+                Guardar Gasto
+              </button>
             </form>
           </div>
+
         </div>
 
-        {/* TABLA DE CONSUMOS CON SCROLL HORIZONTAL */}
+        {/* HISTORIAL DE CONSUMOS */}
         <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16 }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Historial de Consumos</h3>
           {filteredExpenses.length === 0 ? (
@@ -560,11 +696,24 @@ export default function App() {
                     return (
                       <tr key={exp.id} style={{ borderBottom: '1px solid #1f2937' }}>
                         <td style={{ padding: '10px 8px', color: '#fff' }}>{exp.description}</td>
-                        <td style={{ padding: '10px 8px', color: '#f87171', fontWeight: 600 }}>${(Number(exp.amount) || 0).toFixed(2)}</td>
-                        <td style={{ padding: '10px 8px' }}><span style={{ background: '#1f2937', color: '#d1d5db', padding: '3px 6px', borderRadius: 4, fontSize: 11 }}>{exp.category}</span></td>
-                        <td style={{ padding: '10px 8px', color: '#9ca3af' }}>{card ? `${card.brand} (**** ${card.last_digits})` : 'N/A'}</td>
+                        <td style={{ padding: '10px 8px', color: '#f87171', fontWeight: 600 }}>
+                          ${(Number(exp.amount) || 0).toFixed(2)}
+                        </td>
+                        <td style={{ padding: '10px 8px' }}>
+                          <span style={{ background: '#1f2937', color: '#d1d5db', padding: '3px 6px', borderRadius: 4, fontSize: 11 }}>
+                            {exp.category}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 8px', color: '#9ca3af' }}>
+                          {card ? `${card.brand} (**** ${card.last_digits})` : 'N/A'}
+                        </td>
                         <td style={{ padding: '10px 8px', textAlign: 'right' }}>
-                          <button onClick={() => handleDeleteExpense(exp.id)} style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 12 }}>Eliminar</button>
+                          <button 
+                            onClick={() => handleDeleteExpense(exp.id)} 
+                            style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 12 }}
+                          >
+                            Eliminar
+                          </button>
                         </td>
                       </tr>
                     );

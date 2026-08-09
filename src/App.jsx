@@ -39,7 +39,7 @@ export default function App() {
   const [selectedCardId, setSelectedCardId] = useState('all');
   const [expenses, setExpenses] = useState([]);
 
-  // Formulario Tarjeta Completo
+  // Formulario Tarjeta
   const [newCardHolder, setNewCardHolder] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [expDate, setExpDate] = useState('');
@@ -99,7 +99,6 @@ export default function App() {
     if (!error && data) setExpenses(data);
   };
 
-  // Autenticación corregida
   const handleAuth = async (e) => {
     e.preventDefault();
     if (!IS_SUPABASE_VALID) {
@@ -115,12 +114,12 @@ export default function App() {
 
       if (error) {
         if (error.status === 429 || error.message.toLowerCase().includes('rate limit')) {
-          alert('Has realizado demasiados intentos en poco tiempo. Por favor espera unos minutos antes de volver a intentar.');
+          alert('Has realizado demasiados intentos en poco tiempo. Por favor espera unos minutos.');
         } else {
           alert('Error al enviar el correo de recuperación: ' + error.message);
         }
       } else {
-        alert('¡Correo enviado! Revisa tu bandeja de entrada o la carpeta de SPAM.');
+        alert('¡Correo enviado! Revisa tu bandeja de entrada o SPAM.');
       }
       return;
     }
@@ -180,7 +179,6 @@ export default function App() {
     supabase.auth.signOut();
   };
 
-  // Detección automática de franquicia por BIN
   const detectBrand = (number) => {
     const cleanNum = number.replace(/\D/g, '');
     if (cleanNum.startsWith('4')) return 'Visa';
@@ -220,8 +218,10 @@ export default function App() {
 
     const lastDigits = cardNumber.slice(-4);
 
+    // Mapeo corregido enviando card_number para coincidir con la restricción de Supabase
     const cardPayload = {
       holder: newCardHolder,
+      card_number: cardNumber,
       last_digits: lastDigits,
       brand: detectedBrand,
       exp_date: expDate,
@@ -231,18 +231,9 @@ export default function App() {
 
     let { data, error } = await supabase.from('cards').insert([cardPayload]).select();
 
-    if (error && error.message.includes('column')) {
-      const fallbackPayload = {
-        last_digits: lastDigits,
-        brand: detectedBrand,
-        user_id: session?.user?.id
-      };
-      const retry = await supabase.from('cards').insert([fallbackPayload]).select();
-      data = retry.data;
-      error = retry.error;
-    }
-
-    if (!error && data) {
+    if (error) {
+      alert('Error al guardar la tarjeta: ' + error.message);
+    } else if (data) {
       setCards([...cards, data[0]]);
       if (!manualCardId) setManualCardId(data[0].id);
       setNewCardHolder('');
@@ -251,12 +242,9 @@ export default function App() {
       setCvv('');
       setDetectedBrand('Desconocida');
       alert('¡Tarjeta guardada con éxito!');
-    } else {
-      alert('Error al guardar la tarjeta: ' + (error?.message || 'Error desconocido'));
     }
   };
 
-  // Gastos
   const handleAddExpense = async (e) => {
     e.preventDefault();
     if (!description || !amount || !manualCardId) return alert('Completa los datos del gasto');
@@ -280,7 +268,6 @@ export default function App() {
     }
   };
 
-  // CSV Mercado Pago
   const handleImportCSV = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -372,7 +359,7 @@ export default function App() {
     );
   }
 
-  // VISTA AUTH
+  // VISTA AUTENTICACIÓN
   if (!session) {
     return (
       <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif', boxSizing: 'border-box' }}>
@@ -385,36 +372,47 @@ export default function App() {
           `}</style>
           
           <div className="auth-container" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-            <div className="auth-banner" style={{ flex: '1 1 40%', background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)', padding: '32px 24px', color: '#ffffff', display: 'none', flexDirection: 'column', justifyContent: 'space-between' }}>
+            
+            {/* BANNER IZQUIERDO CON 3 PASOS EXPLICATIVOS */}
+            <div className="auth-banner" style={{ flex: '1 1 42%', background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)', padding: '32px 24px', color: '#ffffff', display: 'none', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <h2 style={{ fontSize: 26, fontWeight: 700, margin: '0 0 8px 0' }}>Mis Gastos</h2>
-                <p style={{ fontSize: 13, color: '#e0e7ff', margin: '0 0 28px 0', lineHeight: 1.5 }}>Administra tus tarjetas y consumos en un solo lugar.</p>
+                <p style={{ fontSize: 13, color: '#e0e7ff', margin: '0 0 24px 0', lineHeight: 1.5 }}>Administra tus tarjetas y consumos de forma simple y organizada.</p>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>1</div>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>1</div>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Crea tu cuenta</h4>
-                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Acceso con clave o biometría.</p>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Crea tu cuenta o Ingresa</h4>
+                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Accede de forma segura mediante tu email, contraseña o huella digital.</p>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 13, flexShrink: 0 }}>2</div>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>2</div>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Registra tu tarjeta</h4>
-                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Detección de franquicia, vencimiento y CVV.</p>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Registra tus Tarjetas</h4>
+                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Identificación automática de franquicia (Visa, Mastercard, Amex).</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>3</div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Gestiona e Importa Gastos</h4>
+                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Registra consumos manualmente o carga tu resumen de Mercado Pago CSV.</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div style={{ marginTop: 24, fontSize: 12, color: '#c7d2fe' }}>
-                🛡️ Datos encriptados en Supabase
+                🛡️ Encriptación y seguridad mediante Supabase
               </div>
             </div>
 
-            <div style={{ flex: '1 1 60%', padding: '32px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxSizing: 'border-box' }}>
+            {/* FORMULARIO AUTENTICACIÓN */}
+            <div style={{ flex: '1 1 58%', padding: '32px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxSizing: 'border-box' }}>
               <h3 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: '0 0 6px 0' }}>
                 {authMode === 'login' && 'Iniciar Sesión'}
                 {authMode === 'signup' && 'Crear Cuenta'}
@@ -474,6 +472,7 @@ export default function App() {
                 </button>
               </form>
 
+              {/* EL BOTÓN DE BIOMETRÍA SOLO SE MUESTRA EN MODO LOGIN */}
               {authMode === 'login' && (
                 <button
                   type="button"
@@ -598,7 +597,7 @@ export default function App() {
         {/* FORMULARIOS: TARJETA Y GASTO MANUAL */}
         <div className="form-grid">
           
-          {/* REGISTRAR TARJETA CON DETECCION Y VENCIMIENTO */}
+          {/* REGISTRAR TARJETA */}
           <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16 }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Registrar Tarjeta</h3>
             <form onSubmit={handleAddCard} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

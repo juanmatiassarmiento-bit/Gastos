@@ -99,7 +99,7 @@ export default function App() {
     if (!error && data) setExpenses(data);
   };
 
-  // Autenticación
+  // Autenticación corregida
   const handleAuth = async (e) => {
     e.preventDefault();
     if (!IS_SUPABASE_VALID) {
@@ -108,16 +108,31 @@ export default function App() {
     }
 
     if (authMode === 'reset') {
+      const redirectUrl = window.location.origin;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
+        redirectTo: redirectUrl,
       });
-      if (error) alert(error.message);
-      else alert('Se ha enviado un enlace para restablecer tu contraseña a tu correo.');
+
+      if (error) {
+        if (error.status === 429 || error.message.toLowerCase().includes('rate limit')) {
+          alert('Has realizado demasiados intentos en poco tiempo. Por favor espera unos minutos antes de volver a intentar.');
+        } else {
+          alert('Error al enviar el correo de recuperación: ' + error.message);
+        }
+      } else {
+        alert('¡Correo enviado! Revisa tu bandeja de entrada o la carpeta de SPAM.');
+      }
       return;
     }
 
     if (authMode === 'signup') {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          emailRedirectTo: window.location.origin
+        }
+      });
       if (error) alert(error.message);
       else alert('Revisa tu correo para confirmar la cuenta.');
     } else {
@@ -205,7 +220,6 @@ export default function App() {
 
     const lastDigits = cardNumber.slice(-4);
 
-    // Intentamos guardar con todos los campos
     const cardPayload = {
       holder: newCardHolder,
       last_digits: lastDigits,
@@ -217,7 +231,6 @@ export default function App() {
 
     let { data, error } = await supabase.from('cards').insert([cardPayload]).select();
 
-    // Si ocurre un error de columna faltante en Supabase, reintentamos con los campos esenciales
     if (error && error.message.includes('column')) {
       const fallbackPayload = {
         last_digits: lastDigits,
@@ -705,25 +718,21 @@ export default function App() {
                 </thead>
                 <tbody>
                   {filteredExpenses.map(exp => {
-                    const card = cards.find(c => c.id === exp.card_id);
+                    const matchedCard = cards.find(c => c.id === exp.card_id);
+                    const cardLabel = matchedCard 
+                      ? `${matchedCard.brand} **** ${matchedCard.last_digits}`
+                      : 'Desconocida';
+
                     return (
                       <tr key={exp.id} style={{ borderBottom: '1px solid #1f2937' }}>
                         <td style={{ padding: '10px 8px', color: '#fff' }}>{exp.description}</td>
-                        <td style={{ padding: '10px 8px', color: '#f87171', fontWeight: 600 }}>
-                          ${(Number(exp.amount) || 0).toFixed(2)}
-                        </td>
-                        <td style={{ padding: '10px 8px' }}>
-                          <span style={{ background: '#1f2937', color: '#d1d5db', padding: '3px 6px', borderRadius: 4, fontSize: 11 }}>
-                            {exp.category}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 8px', color: '#9ca3af' }}>
-                          {card ? `${card.brand} (**** ${card.last_digits})` : 'N/A'}
-                        </td>
+                        <td style={{ padding: '10px 8px', color: '#34d399', fontWeight: 600 }}>${Number(exp.amount).toFixed(2)}</td>
+                        <td style={{ padding: '10px 8px', color: '#9ca3af' }}>{exp.category}</td>
+                        <td style={{ padding: '10px 8px', color: '#818cf8' }}>{cardLabel}</td>
                         <td style={{ padding: '10px 8px', textAlign: 'right' }}>
                           <button 
-                            onClick={() => handleDeleteExpense(exp.id)} 
-                            style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 12 }}
+                            onClick={() => handleDeleteExpense(exp.id)}
+                            style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 12, padding: '4px 8px' }}
                           >
                             Eliminar
                           </button>

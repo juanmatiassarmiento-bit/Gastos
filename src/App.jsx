@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Papa from 'papaparse';
 import { createClient } from '@supabase/supabase-js';
 
@@ -49,6 +49,11 @@ export default function App() {
   const [expDate, setExpDate] = useState('');
   const [cvv, setCvv] = useState('');
   const [detectedBrand, setDetectedBrand] = useState('Desconocida');
+  const [cardVerificationMethod, setCardVerificationMethod] = useState('');
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const cameraVideoRef = useRef(null);
+  const cameraStreamRef = useRef(null);
 
   // Formulario Gasto Manual
   const [description, setDescription] = useState('');
@@ -108,6 +113,27 @@ export default function App() {
       fetchExpenses();
     }
   }, [session]);
+
+  useEffect(() => {
+    if (!cameraOpen) return undefined;
+
+    const startCamera = async () => {
+      try {
+        setCameraError('');
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        cameraStreamRef.current = stream;
+        if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream;
+      } catch (_) {
+        setCameraError('No se pudo acceder a la cámara. Revisa los permisos del navegador o usa la huella del dispositivo.');
+      }
+    };
+
+    startCamera();
+    return () => {
+      cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+    };
+  }, [cameraOpen]);
 
   const fetchCards = async () => {
     const { data, error } = await supabase.from('cards').select('*');
@@ -235,18 +261,27 @@ export default function App() {
     setVerificationCodeSent(false);
   };
 
-  const handleBiometricAuth = async () => {
+  const handleCardBiometricVerification = async () => {
     if (!window.PublicKeyCredential) {
-      alert('Tu navegador o dispositivo no soporta autenticación biométrica.');
+      alert('Tu navegador o dispositivo no soporta autenticación biométrica. Puedes usar la cámara para continuar.');
       return;
     }
     try {
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
-      alert('Iniciando lectura biométrica / huella dactilar...');
-    } catch (err) {
-      alert('Error o cancelación en la lectura biométrica: ' + err.message);
+      const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      if (!available) {
+        alert('No detectamos huella o biometría configurada en este dispositivo. Puedes usar la cámara para continuar.');
+        return;
+      }
+      setCardVerificationMethod('biometric');
+    } catch (_) {
+      alert('No se pudo verificar la biometría. Puedes usar la cámara para continuar.');
     }
+  };
+
+  const confirmCameraVerification = () => {
+    if (!cameraStreamRef.current) return;
+    setCardVerificationMethod('camera');
+    setCameraOpen(false);
   };
 
   const handleUpdatePassword = async (e) => {
@@ -307,6 +342,9 @@ export default function App() {
 
   const handleAddCard = async (e) => {
     e.preventDefault();
+    if (!cardVerificationMethod) {
+      return alert('Antes de guardar la tarjeta, valida el registro con huella/biometría o mediante la cámara.');
+    }
     if (!newCardHolder || cardNumber.length < 13 || expDate.length < 5 || cvv.length < 3) {
       return alert('Completa todos los datos requeridos de la tarjeta (titular, número completo, MM/AA y CVV).');
     }
@@ -336,6 +374,7 @@ export default function App() {
       setExpDate('');
       setCvv('');
       setDetectedBrand('Desconocida');
+      setCardVerificationMethod('');
       alert('¡Tarjeta guardada con éxito!');
     }
   };
@@ -479,7 +518,7 @@ export default function App() {
                     <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>1</div>
                     <div>
                       <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Crea tu cuenta o Ingresa</h4>
-                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Accede de forma segura mediante tu email, contraseña o huella digital.</p>
+                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Accede de forma segura con tu correo electrónico y contraseña.</p>
                     </div>
                   </div>
 
@@ -614,17 +653,6 @@ export default function App() {
                 </button>
               </form>
 
-              {/* EL BOTÓN DE BIOMETRÍA SOLO SE MUESTRA EN MODO LOGIN */}
-              {authMode === 'login' && (
-                <button
-                  type="button"
-                  onClick={handleBiometricAuth}
-                  style={{ width: '100%', padding: '12px', background: '#10b981', color: '#ffffff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer', marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                >
-                  ☝️ Ingresar con Biometría / Huella
-                </button>
-              )}
-
               <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#4b5563', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {authMode === 'login' && (
                   <>
@@ -748,6 +776,27 @@ export default function App() {
           {/* REGISTRAR TARJETA */}
           <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16 }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Registrar Tarjeta</h3>
+            <div style={{ marginBottom: 14, padding: 12, borderRadius: 8, background: '#172554', border: '1px solid #3730a3' }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: 13, color: '#e0e7ff', fontWeight: 600 }}>Valida el registro antes de guardar la tarjeta</p>
+              <p style={{ margin: '0 0 10px 0', fontSize: 12, color: '#c7d2fe' }}>Elige huella/biometría del dispositivo o cámara. No guardamos imágenes de la cámara.</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <button type="button" onClick={handleCardBiometricVerification} style={{ padding: '8px 10px', background: cardVerificationMethod === 'biometric' ? '#059669' : '#312e81', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  {cardVerificationMethod === 'biometric' ? '✓ Huella verificada' : 'Usar huella / biometría'}
+                </button>
+                <button type="button" onClick={() => setCameraOpen(true)} style={{ padding: '8px 10px', background: cardVerificationMethod === 'camera' ? '#059669' : '#312e81', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  {cardVerificationMethod === 'camera' ? '✓ Cámara verificada' : 'Usar cámara'}
+                </button>
+              </div>
+              {cameraOpen && (
+                <div style={{ marginTop: 12 }}>
+                  {cameraError ? <p style={{ margin: 0, color: '#fca5a5', fontSize: 12 }}>{cameraError}</p> : <video ref={cameraVideoRef} autoPlay playsInline style={{ width: '100%', maxHeight: 190, borderRadius: 6, background: '#020617' }} />}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button type="button" onClick={confirmCameraVerification} disabled={!!cameraError} style={{ padding: '8px 10px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: cameraError ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600, opacity: cameraError ? 0.5 : 1 }}>Confirmar con cámara</button>
+                    <button type="button" onClick={() => setCameraOpen(false)} style={{ padding: '8px 10px', background: '#374151', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+            </div>
             <form onSubmit={handleAddCard} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <input 
                 type="text" 

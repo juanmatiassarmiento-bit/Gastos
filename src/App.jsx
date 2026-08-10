@@ -135,12 +135,21 @@ export default function App() {
 
       if (error) {
         if (error.status === 429 || error.message.toLowerCase().includes('rate limit')) {
-          alert('Has realizado demasiados intentos en poco tiempo. Por favor espera unos minutos.');
+          setAuthMessage({
+            type: 'error',
+            text: 'Realizaste varios intentos seguidos. Espera unos minutos antes de solicitar otro correo.',
+          });
         } else {
-          alert('Error al enviar el correo de recuperación: ' + error.message);
+          setAuthMessage({
+            type: 'error',
+            text: 'No pudimos enviar el correo de recuperación. Verifica que el email sea correcto e inténtalo de nuevo en unos minutos.',
+          });
         }
       } else {
-        alert('¡Correo enviado! Revisa tu bandeja de entrada o SPAM.');
+        setAuthMessage({
+          type: 'success',
+          text: '¡Correo enviado! Revisa tu bandeja de entrada y la carpeta de correo no deseado para continuar.',
+        });
       }
       return;
     }

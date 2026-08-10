@@ -29,6 +29,9 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMessage, setAuthMessage] = useState(null);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationCodeSent, setVerificationCodeSent] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
 
   // Recuperación de contraseña
   const [isRecoverySession, setIsRecoverySession] = useState(false);
@@ -175,6 +178,61 @@ export default function App() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setAuthMessage({ type: 'error', text: getFriendlyAuthError(error) });
     }
+  };
+
+  const handleSendVerificationCode = async (e) => {
+    e.preventDefault();
+    setAuthMessage(null);
+
+    if (!IS_SUPABASE_VALID) {
+      setAuthMessage({ type: 'error', text: 'No se pudo conectar con el servicio de acceso. Inténtalo más tarde.' });
+      return;
+    }
+
+    setVerifyingCode(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    });
+    setVerifyingCode(false);
+
+    if (error) {
+      setAuthMessage({ type: 'error', text: 'No pudimos enviar el código. Verifica tu correo e inténtalo de nuevo en unos minutos.' });
+      return;
+    }
+
+    setVerificationCodeSent(true);
+    setAuthMessage({ type: 'success', text: 'Te enviamos un código de verificación a tu correo. Escríbelo abajo para ingresar.' });
+  };
+
+  const handleVerifyVerificationCode = async (e) => {
+    e.preventDefault();
+    if (verificationCode.length < 6) {
+      setAuthMessage({ type: 'error', text: 'Ingresa el código de 6 dígitos que recibiste por correo.' });
+      return;
+    }
+
+    setVerifyingCode(true);
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: verificationCode,
+      type: 'email',
+    });
+    setVerifyingCode(false);
+
+    if (error || !data?.session) {
+      setAuthMessage({ type: 'error', text: 'El código no es válido o venció. Solicita uno nuevo e inténtalo otra vez.' });
+      return;
+    }
+
+    setSession(data.session);
+  };
+
+  const openCodeLogin = () => {
+    setAuthMode('otp');
+    setAuthMessage(null);
+    setVerificationCode('');
+    setVerificationCodeSent(false);
   };
 
   const handleBiometricAuth = async () => {
@@ -454,11 +512,13 @@ export default function App() {
                 {authMode === 'login' && 'Iniciar Sesión'}
                 {authMode === 'signup' && 'Crear Cuenta'}
                 {authMode === 'reset' && 'Recuperar Contraseña'}
+                {authMode === 'otp' && 'Ingresar con código'}
               </h3>
               <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 24px 0' }}>
                 {authMode === 'login' && 'Ingresa a tu panel de control'}
                 {authMode === 'signup' && 'Completa tus datos para registrarte'}
                 {authMode === 'reset' && 'Ingresa tu correo para recibir las instrucciones'}
+                {authMode === 'otp' && (verificationCodeSent ? 'Escribe el código de 6 dígitos que enviamos a tu correo' : 'Te enviaremos un código de verificación para ingresar sin contraseña')}
               </p>
 
               {authMessage && (
@@ -468,7 +528,7 @@ export default function App() {
                 </div>
               )}
 
-              <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <form onSubmit={authMode === 'otp' ? (verificationCodeSent ? handleVerifyVerificationCode : handleSendVerificationCode) : handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
                     CORREO ELECTRÓNICO
@@ -478,12 +538,13 @@ export default function App() {
                     placeholder="tu@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    disabled={authMode === 'otp' && verificationCodeSent}
                     required
                     style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
                   />
                 </div>
 
-                {authMode !== 'reset' && (
+                {(authMode === 'login' || authMode === 'signup') && (
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                       <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5 }}>
@@ -523,6 +584,25 @@ export default function App() {
                   </div>
                 )}
 
+                {authMode === 'otp' && verificationCodeSent && (
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
+                      CÓDIGO DE VERIFICACIÓN
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="123456"
+                      maxLength={6}
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      required
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 18, letterSpacing: 6, textAlign: 'center', boxSizing: 'border-box', outline: 'none' }}
+                    />
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   style={{ width: '100%', padding: '14px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 15, cursor: 'pointer', marginTop: 8 }}
@@ -530,6 +610,7 @@ export default function App() {
                   {authMode === 'login' && 'Ingresar'}
                   {authMode === 'signup' && 'Registrarse'}
                   {authMode === 'reset' && 'Enviar Correo de Recuperación'}
+                  {authMode === 'otp' && (verifyingCode ? 'Verificando...' : verificationCodeSent ? 'Verificar e ingresar' : 'Enviar código de verificación')}
                 </button>
               </form>
 
@@ -546,12 +627,18 @@ export default function App() {
 
               <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#4b5563', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {authMode === 'login' && (
-                  <div>¿No tienes cuenta aún? <span onClick={() => setAuthMode('signup')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Regístrate aquí</span></div>
+                  <>
+                    <div>¿No tienes cuenta aún? <span onClick={() => setAuthMode('signup')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Regístrate aquí</span></div>
+                    <div>¿No recuerdas tu contraseña? <span onClick={openCodeLogin} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Ingresa con un código</span></div>
+                  </>
                 )}
                 {authMode === 'signup' && (
                   <div>¿Ya tienes cuenta? <span onClick={() => setAuthMode('login')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Inicia sesión aquí</span></div>
                 )}
                 {authMode === 'reset' && (
+                  <div><span onClick={() => setAuthMode('login')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>← Volver a Iniciar Sesión</span></div>
+                )}
+                {authMode === 'otp' && (
                   <div><span onClick={() => setAuthMode('login')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>← Volver a Iniciar Sesión</span></div>
                 )}
               </div>

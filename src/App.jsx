@@ -28,6 +28,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [authMessage, setAuthMessage] = useState(null);
 
   // Recuperación de contraseña
   const [isRecoverySession, setIsRecoverySession] = useState(false);
@@ -53,6 +54,25 @@ export default function App() {
   const [manualCardId, setManualCardId] = useState('');
 
   const [importing, setImporting] = useState(false);
+
+  const passwordRules = [
+    { label: 'Al menos 8 caracteres', valid: password.length >= 8 },
+    { label: 'Una letra minúscula (a-z)', valid: /[a-z]/.test(password) },
+    { label: 'Una letra mayúscula (A-Z)', valid: /[A-Z]/.test(password) },
+    { label: 'Un número (0-9)', valid: /\d/.test(password) },
+    { label: 'Un símbolo (por ejemplo: ! @ # $ %)', valid: /[^A-Za-z0-9]/.test(password) },
+  ];
+
+  const getFriendlyAuthError = (error) => {
+    const message = error?.message || '';
+    if (/password should contain|password.*character/i.test(message)) {
+      return 'Tu contraseña aún no cumple los requisitos de seguridad. Revisa los puntos marcados abajo y vuelve a intentarlo.';
+    }
+    if (/invalid login credentials/i.test(message)) {
+      return 'El correo o la contraseña no son correctos. Revisa los datos e inténtalo nuevamente.';
+    }
+    return message || 'No pudimos completar la operación. Inténtalo de nuevo.';
+  };
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -101,6 +121,7 @@ export default function App() {
 
   const handleAuth = async (e) => {
     e.preventDefault();
+    setAuthMessage(null);
     if (!IS_SUPABASE_VALID) {
       alert('Error: No se encontró VITE_SUPABASE_URL. Verifica las variables de entorno.');
       return;
@@ -125,6 +146,13 @@ export default function App() {
     }
 
     if (authMode === 'signup') {
+      if (passwordRules.some((rule) => !rule.valid)) {
+        setAuthMessage({
+          type: 'error',
+          text: 'Para proteger tu cuenta, crea una contraseña que cumpla todos los requisitos indicados.',
+        });
+        return;
+      }
       const { error } = await supabase.auth.signUp({ 
         email, 
         password,
@@ -132,11 +160,11 @@ export default function App() {
           emailRedirectTo: window.location.origin
         }
       });
-      if (error) alert(error.message);
-      else alert('Revisa tu correo para confirmar la cuenta.');
+      if (error) setAuthMessage({ type: 'error', text: getFriendlyAuthError(error) });
+      else setAuthMessage({ type: 'success', text: '¡Cuenta creada! Revisa tu correo para confirmar tu registro.' });
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) alert(error.message);
+      if (error) setAuthMessage({ type: 'error', text: getFriendlyAuthError(error) });
     }
   };
 
@@ -424,6 +452,13 @@ export default function App() {
                 {authMode === 'reset' && 'Ingresa tu correo para recibir las instrucciones'}
               </p>
 
+              {authMessage && (
+                <div role={authMessage.type === 'error' ? 'alert' : 'status'} aria-live="polite" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 14px', borderRadius: 10, marginBottom: 18, background: authMessage.type === 'error' ? '#fef2f2' : '#ecfdf5', border: `1px solid ${authMessage.type === 'error' ? '#fecaca' : '#a7f3d0'}`, color: authMessage.type === 'error' ? '#991b1b' : '#065f46', fontSize: 13, lineHeight: 1.45 }}>
+                  <span aria-hidden="true" style={{ fontWeight: 700, fontSize: 16 }}>{authMessage.type === 'error' ? '!' : '✓'}</span>
+                  <span>{authMessage.text}</span>
+                </div>
+              )}
+
               <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>
@@ -453,12 +488,29 @@ export default function App() {
                     </div>
                     <input
                       type="password"
-                      placeholder="••••••••"
+                      placeholder={authMode === 'signup' ? 'Crea una contraseña segura' : 'Ingresa tu contraseña'}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (authMessage) setAuthMessage(null);
+                      }}
                       required
-                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
+                      aria-describedby={authMode === 'signup' ? 'password-requirements' : undefined}
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: authMode === 'signup' && password && passwordRules.some((rule) => !rule.valid) ? '1px solid #f59e0b' : '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
                     />
+                    {authMode === 'signup' && (
+                      <div id="password-requirements" style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                        <p style={{ margin: '0 0 8px 0', color: '#334155', fontSize: 12, fontWeight: 700 }}>Tu contraseña debe incluir:</p>
+                        <div style={{ display: 'grid', gap: 6 }}>
+                          {passwordRules.map((rule) => (
+                            <div key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: rule.valid ? '#047857' : '#64748b' }}>
+                              <span aria-hidden="true" style={{ width: 17, height: 17, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: rule.valid ? '#d1fae5' : '#e2e8f0', color: rule.valid ? '#047857' : '#64748b', fontWeight: 700 }}>{rule.valid ? '✓' : '•'}</span>
+                              {rule.label}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

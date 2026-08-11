@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { createClient } from '@supabase/supabase-js';
 
 // Inicialización de Supabase
@@ -403,81 +404,78 @@ export default function App() {
     }
   };
 
-  const handleImportCSV = (e) => {
+  const importExpenseRows = async (rows, fileName) => {
+    const newExpenses = rows.map((row) => {
+      const keys = Object.keys(row || {});
+      const getVal = (...possibleKeys) => {
+        for (const key of possibleKeys) {
+          const found = keys.find((column) => column.trim().toLowerCase() === key.toLowerCase());
+          if (found && row[found] !== undefined && row[found] !== null) return String(row[found]).trim();
+        }
+        return '';
+      };
+
+      const rawDesc = getVal('description', 'descripción', 'descripcion', 'concepto', 'titulo', 'title', 'detail', 'external_reference', 'reason');
+      const rawAmount = getVal('transaction_amount', 'amount', 'monto', 'importe', 'total', 'valor', 'net_amount');
+      const rawCategory = getVal('category', 'categoría', 'categoria', 'type', 'tipo') || 'Importado';
+      let cleanAmount = rawAmount.replace(/\$/g, '').replace(/\s/g, '');
+      if (cleanAmount.includes(',') && cleanAmount.includes('.')) cleanAmount = cleanAmount.replace(/\./g, '').replace(',', '.');
+      else if (cleanAmount.includes(',')) cleanAmount = cleanAmount.replace(',', '.');
+
+      const amount = parseFloat(cleanAmount);
+      return {
+        description: rawDesc || 'Consumo importado',
+        amount: Number.isNaN(amount) ? 0 : Math.abs(amount),
+        category: rawCategory,
+        card_id: selectedCardId,
+        user_id: session?.user?.id,
+      };
+    }).filter((item) => item.amount > 0);
+
+    if (newExpenses.length === 0) {
+      alert(`No se encontraron consumos válidos en ${fileName}. Verifica que incluya columnas como descripción y monto.`);
+      return;
+    }
+
+    const { data, error } = await supabase.from('expenses').insert(newExpenses).select();
+    if (!error && data) {
+      setExpenses([...data, ...expenses]);
+      alert(`¡Éxito! Se importaron ${data.length} consumos.`);
+    } else {
+      alert('Error al guardar en Supabase: ' + (error?.message || 'Error desconocido'));
+    }
+  };
+
+  const handleImportFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     if (selectedCardId === 'all') {
-      alert('Por favor selecciona una tarjeta específica antes de importar el archivo CSV.');
+      alert('Por favor selecciona una tarjeta específica antes de importar movimientos.');
       return;
     }
 
     setImporting(true);
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const rows = results.data || [];
-        
-        const newExpenses = rows.map(row => {
-          const keys = Object.keys(row);
-          const getVal = (...possibleKeys) => {
-            for (const k of possibleKeys) {
-              const found = keys.find(key => key.trim().toLowerCase() === k.toLowerCase());
-              if (found && row[found] !== undefined && row[found] !== null) {
-                return String(row[found]).trim();
-              }
-            }
-            return '';
-          };
-
-          const rawDesc = getVal('description', 'descripción', 'descripcion', 'concepto', 'titulo', 'title', 'detail', 'external_reference', 'reason');
-          const rawAmount = getVal('transaction_amount', 'amount', 'monto', 'importe', 'total', 'valor', 'net_amount');
-          const rawCategory = getVal('category', 'categoría', 'categoria', 'type', 'tipo') || 'Mercado Pago';
-
-          let cleanAmountStr = rawAmount.replace(/\$/g, '').replace(/\s/g, '');
-          if (cleanAmountStr.includes(',') && cleanAmountStr.includes('.')) {
-            cleanAmountStr = cleanAmountStr.replace(/\./g, '').replace(',', '.');
-          } else if (cleanAmountStr.includes(',')) {
-            cleanAmountStr = cleanAmountStr.replace(',', '.');
-          }
-
-          let valAmount = parseFloat(cleanAmountStr);
-          if (!isNaN(valAmount)) {
-            valAmount = Math.abs(valAmount);
-          }
-
-          return {
-            description: rawDesc || 'Consumo Mercado Pago',
-            amount: isNaN(valAmount) ? 0 : valAmount,
-            category: rawCategory,
-            card_id: selectedCardId,
-            user_id: session?.user?.id
-          };
-        }).filter(item => item.amount > 0);
-
-        if (newExpenses.length === 0) {
-          alert('No se encontraron registros de consumos válidos en el archivo CSV.');
-          setImporting(false);
-          return;
-        }
-
-        const { data, error } = await supabase.from('expenses').insert(newExpenses).select();
-        setImporting(false);
-
-        if (!error && data) {
-          setExpenses([...data, ...expenses]);
-          alert(`¡Éxito! Se importaron ${data.length} consumos.`);
-        } else {
-          alert('Error al guardar en Supabase: ' + (error?.message || 'Error desconocido'));
-        }
-      },
-      error: (err) => {
-        setImporting(false);
-        alert('Error al leer el CSV: ' + err.message);
+    try {
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      let rows;
+      if (extension === 'xlsx' || extension === 'xls') {
+        const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+        rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
+      } else if (extension === 'json') {
+        const json = JSON.parse(await file.text());
+        rows = Array.isArray(json) ? json : (json.data || json.movements || json.movimientos || []);
+      } else if (['csv', 'txt', 'tsv'].includes(extension)) {
+        rows = Papa.parse(await file.text(), { header: true, skipEmptyLines: true, delimiter: extension === 'tsv' ? '\t' : '' }).data;
+      } else {
+        throw new Error('Formato no compatible. Usa CSV, TXT, TSV, XLS, XLSX o JSON.');
       }
-    });
+      await importExpenseRows(rows, file.name);
+    } catch (error) {
+      alert('No se pudo leer el archivo: ' + error.message);
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
   };
 
   const filteredExpenses = selectedCardId === 'all'
@@ -768,12 +766,12 @@ export default function App() {
 
           <div className="import-box" style={{ borderTop: '1px solid #1f2937', paddingTop: 14 }}>
             <div>
-              <h4 style={{ margin: 0, color: '#818cf8', fontSize: 14 }}>📥 Importar Mercado Pago (.CSV)</h4>
-              <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#9ca3af' }}>Asocia automáticamente los consumos a la tarjeta elegida.</p>
+              <h4 style={{ margin: 0, color: '#818cf8', fontSize: 14 }}>📥 Importar movimientos</h4>
+              <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#9ca3af' }}>CSV, Excel, TXT/TSV o JSON. Asocia automáticamente los consumos a la tarjeta elegida.</p>
             </div>
             <label style={{ background: importing ? '#4b5563' : '#4f46e5', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 600, cursor: importing ? 'not-allowed' : 'pointer', fontSize: 13, textAlign: 'center', whiteSpace: 'nowrap' }}>
-              {importing ? 'Importando...' : '⬆️ Seleccionar CSV'}
-              <input type="file" accept=".csv" onChange={handleImportCSV} disabled={importing} style={{ display: 'none' }} />
+              {importing ? 'Importando...' : '⬆️ Seleccionar archivo'}
+              <input type="file" accept=".csv,.txt,.tsv,.xls,.xlsx,.json" onChange={handleImportFile} disabled={importing} style={{ display: 'none' }} />
             </label>
           </div>
         </div>

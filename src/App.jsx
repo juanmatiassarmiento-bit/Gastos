@@ -10,6 +10,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 // Inicialización de Supabase
 const rawUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const configuredAuthRedirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL?.trim() || '';
 
 const isValidHttpUrl = (string) => {
   try {
@@ -22,6 +23,7 @@ const isValidHttpUrl = (string) => {
 
 const supabaseUrl = isValidHttpUrl(rawUrl) ? rawUrl : 'https://placeholder.supabase.co';
 const supabaseAnonKey = rawKey || 'placeholder';
+const authRedirectUrl = isValidHttpUrl(configuredAuthRedirectUrl) ? configuredAuthRedirectUrl : undefined;
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 const IS_SUPABASE_VALID = rawUrl && !supabaseUrl.includes('placeholder');
@@ -33,6 +35,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [authMessage, setAuthMessage] = useState(null);
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationCodeSent, setVerificationCodeSent] = useState(false);
@@ -41,6 +44,7 @@ export default function App() {
   // Recuperación de contraseña
   const [isRecoverySession, setIsRecoverySession] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
   // Estado de Tarjetas y Gastos
@@ -162,9 +166,8 @@ export default function App() {
     }
 
     if (authMode === 'reset') {
-      const redirectUrl = window.location.origin;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
+        ...(authRedirectUrl ? { redirectTo: authRedirectUrl } : {}),
       });
 
       if (error) {
@@ -196,12 +199,10 @@ export default function App() {
         });
         return;
       }
-      const { error } = await supabase.auth.signUp({ 
-        email, 
+      const { error } = await supabase.auth.signUp({
+        email,
         password,
-        options: {
-          emailRedirectTo: window.location.origin
-        }
+        options: authRedirectUrl ? { emailRedirectTo: authRedirectUrl } : undefined,
       });
       if (error) setAuthMessage({ type: 'error', text: getFriendlyAuthError(error) });
       else setAuthMessage({ type: 'success', text: '¡Cuenta creada! Revisa tu correo para confirmar tu registro.' });
@@ -611,6 +612,8 @@ export default function App() {
                   </label>
                   <input
                     type="email"
+                    name="email"
+                    autoComplete={authMode === 'signup' ? 'email' : 'username'}
                     placeholder="tu@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -632,8 +635,11 @@ export default function App() {
                         </span>
                       )}
                     </div>
+                    <div style={{ position: 'relative' }}>
                     <input
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
                       placeholder={authMode === 'signup' ? 'Crea una contraseña segura' : 'Ingresa tu contraseña'}
                       value={password}
                       onChange={(e) => {
@@ -642,8 +648,18 @@ export default function App() {
                       }}
                       required
                       aria-describedby={authMode === 'signup' ? 'password-requirements' : undefined}
-                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: authMode === 'signup' && password && passwordRules.some((rule) => !rule.valid) ? '1px solid #f59e0b' : '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
+                      style={{ width: '100%', padding: '12px 52px 12px 14px', borderRadius: 8, border: authMode === 'signup' && password && passwordRules.some((rule) => !rule.valid) ? '1px solid #f59e0b' : '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      aria-pressed={showPassword}
+                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#4f46e5', cursor: 'pointer', fontSize: 12, fontWeight: 700, padding: 8 }}
+                    >
+                      {showPassword ? 'Ocultar' : 'Ver'}
+                    </button>
+                    </div>
                     {authMode === 'signup' && (
                       <div id="password-requirements" style={{ marginTop: 10, padding: '12px 14px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                         <p style={{ margin: '0 0 8px 0', color: '#334155', fontSize: 12, fontWeight: 700 }}>Tu contraseña debe incluir:</p>
@@ -748,14 +764,27 @@ export default function App() {
               Has ingresado mediante un enlace de recuperación. Ingresa tu nueva contraseña:
             </p>
             <form onSubmit={handleUpdatePassword} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
               <input
-                type="password"
+                type={showNewPassword ? 'text' : 'password'}
+                name="new-password"
+                autoComplete="new-password"
                 placeholder="Escribe tu nueva contraseña"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
-                style={{ flex: 1, minWidth: 200, padding: 10, borderRadius: 8, border: '1px solid #4f46e5', background: '#0b0f19', color: '#fff', fontSize: 14, outline: 'none' }}
+                style={{ width: '100%', padding: '10px 54px 10px 10px', borderRadius: 8, border: '1px solid #4f46e5', background: '#0b0f19', color: '#fff', fontSize: 14, outline: 'none' }}
               />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword((visible) => !visible)}
+                aria-label={showNewPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                aria-pressed={showNewPassword}
+                style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#a5b4fc', cursor: 'pointer', fontSize: 12, fontWeight: 700, padding: 8 }}
+              >
+                {showNewPassword ? 'Ocultar' : 'Ver'}
+              </button>
+              </div>
               <button
                 type="submit"
                 disabled={updatingPassword}

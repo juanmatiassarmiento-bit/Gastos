@@ -227,14 +227,15 @@ export default function App() {
       return;
     }
 
+    setVerificationCode('');
     setVerificationCodeSent(true);
-    setAuthMessage({ type: 'success', text: 'Te enviamos un código de verificación a tu correo. Escríbelo abajo para ingresar.' });
+    setAuthMessage({ type: 'success', text: 'Te enviamos un código de 6 dígitos a tu correo. Escríbelo abajo para ingresar.' });
   };
 
   const handleVerifyVerificationCode = async (e) => {
     e.preventDefault();
-    if (verificationCode.length < 6) {
-      setAuthMessage({ type: 'error', text: 'Ingresa el código de 6 dígitos que recibiste por correo.' });
+    if (verificationCode.length !== 6) {
+      setAuthMessage({ type: 'error', text: 'Ingresa los 6 dígitos del código de verificación.' });
       return;
     }
 
@@ -247,7 +248,7 @@ export default function App() {
     setVerifyingCode(false);
 
     if (error || !data?.session) {
-      setAuthMessage({ type: 'error', text: 'El código no es válido o venció. Solicita uno nuevo e inténtalo otra vez.' });
+      setAuthMessage({ type: 'error', text: 'El código es incorrecto o venció. Revisa los 6 dígitos o solicita uno nuevo.' });
       return;
     }
 
@@ -635,7 +636,10 @@ export default function App() {
                       placeholder="123456"
                       maxLength={6}
                       value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      onChange={(e) => {
+                        setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                        if (authMessage?.type === 'error') setAuthMessage(null);
+                      }}
                       required
                       style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 18, letterSpacing: 6, textAlign: 'center', boxSizing: 'border-box', outline: 'none' }}
                     />
@@ -644,12 +648,13 @@ export default function App() {
 
                 <button
                   type="submit"
+                  disabled={authMode === 'otp' && verifyingCode}
                   style={{ width: '100%', padding: '14px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 15, cursor: 'pointer', marginTop: 8 }}
                 >
                   {authMode === 'login' && 'Ingresar'}
                   {authMode === 'signup' && 'Registrarse'}
                   {authMode === 'reset' && 'Enviar Correo de Recuperación'}
-                  {authMode === 'otp' && (verifyingCode ? 'Verificando...' : verificationCodeSent ? 'Verificar e ingresar' : 'Enviar código de verificación')}
+                  {authMode === 'otp' && (verifyingCode ? (verificationCodeSent ? 'Verificando...' : 'Enviando código...') : (verificationCodeSent ? 'Verificar e ingresar' : 'Enviar código de verificación'))}
                 </button>
               </form>
 
@@ -667,7 +672,10 @@ export default function App() {
                   <div><span onClick={() => setAuthMode('login')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>← Volver a Iniciar Sesión</span></div>
                 )}
                 {authMode === 'otp' && (
-                  <div><span onClick={() => setAuthMode('login')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>← Volver a Iniciar Sesión</span></div>
+                  <div>
+                    {verificationCodeSent && <span onClick={() => { setVerificationCode(''); setVerificationCodeSent(false); setAuthMessage(null); }} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer', marginRight: 14 }}>Enviar otro código</span>}
+                    <span onClick={() => setAuthMode('login')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>← Volver a Iniciar Sesión</span>
+                  </div>
                 )}
               </div>
             </div>

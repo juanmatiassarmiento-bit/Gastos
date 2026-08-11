@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { createClient } from '@supabase/supabase-js';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 // Inicialización de Supabase
 const rawUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -446,6 +450,38 @@ export default function App() {
     }
   };
 
+  const extractPdfRows = async (file) => {
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const rows = [];
+    const amountAtEnd = /((?:[$€£]\s*)?-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})|-?\d+(?:[.,]\d{2}))\s*$/;
+
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const content = await (await pdf.getPage(pageNumber)).getTextContent();
+      const linesByPosition = new Map();
+      content.items.forEach((item) => {
+        if (!('str' in item) || !item.str.trim()) return;
+        const y = Math.round(item.transform[5]);
+        const line = linesByPosition.get(y) || [];
+        line.push({ x: item.transform[4], text: item.str });
+        linesByPosition.set(y, line);
+      });
+
+      [...linesByPosition.entries()]
+        .sort(([firstY], [secondY]) => secondY - firstY)
+        .map(([, items]) => items.sort((a, b) => a.x - b.x).map((item) => item.text).join(' ').replace(/\s+/g, ' ').trim())
+        .forEach((line) => {
+          const match = line.match(amountAtEnd);
+          if (!match) return;
+          const description = line.slice(0, match.index).trim();
+          if (description.length < 3) return;
+          rows.push({ description, amount: match[1], category: 'Importado desde PDF' });
+        });
+    }
+
+    if (!rows.length) throw new Error('No encontramos movimientos legibles. El PDF debe contener texto seleccionable y montos por línea.');
+    return rows;
+  };
+
   const handleImportFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -461,13 +497,15 @@ export default function App() {
       if (extension === 'xlsx' || extension === 'xls') {
         const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
         rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: '' });
+      } else if (extension === 'pdf') {
+        rows = await extractPdfRows(file);
       } else if (extension === 'json') {
         const json = JSON.parse(await file.text());
         rows = Array.isArray(json) ? json : (json.data || json.movements || json.movimientos || []);
       } else if (['csv', 'txt', 'tsv'].includes(extension)) {
         rows = Papa.parse(await file.text(), { header: true, skipEmptyLines: true, delimiter: extension === 'tsv' ? '\t' : '' }).data;
       } else {
-        throw new Error('Formato no compatible. Usa CSV, TXT, TSV, XLS, XLSX o JSON.');
+        throw new Error('Formato no compatible. Usa CSV, TXT, TSV, XLS, XLSX, JSON o PDF.');
       }
       await importExpenseRows(rows, file.name);
     } catch (error) {
@@ -767,11 +805,11 @@ export default function App() {
           <div className="import-box" style={{ borderTop: '1px solid #1f2937', paddingTop: 14 }}>
             <div>
               <h4 style={{ margin: 0, color: '#818cf8', fontSize: 14 }}>📥 Importar movimientos</h4>
-              <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#9ca3af' }}>CSV, Excel, TXT/TSV o JSON. Asocia automáticamente los consumos a la tarjeta elegida.</p>
+              <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#9ca3af' }}>CSV, Excel, TXT/TSV, JSON o PDF con texto. Asocia automáticamente los consumos a la tarjeta elegida.</p>
             </div>
             <label style={{ background: importing ? '#4b5563' : '#4f46e5', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 600, cursor: importing ? 'not-allowed' : 'pointer', fontSize: 13, textAlign: 'center', whiteSpace: 'nowrap' }}>
               {importing ? 'Importando...' : '⬆️ Seleccionar archivo'}
-              <input type="file" accept=".csv,.txt,.tsv,.xls,.xlsx,.json" onChange={handleImportFile} disabled={importing} style={{ display: 'none' }} />
+              <input type="file" accept=".csv,.txt,.tsv,.xls,.xlsx,.json,.pdf" onChange={handleImportFile} disabled={importing} style={{ display: 'none' }} />
             </label>
           </div>
         </div>

@@ -734,7 +734,7 @@ export default function App() {
                       inputMode="numeric"
                       autoComplete="one-time-code"
                       placeholder="123456"
-                      maxLength={6}
+                      maxLength={8}
                       value={verificationCode}
                       onChange={(e) => {
                         setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6));

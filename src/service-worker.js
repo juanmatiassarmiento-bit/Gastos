@@ -1,15 +1,3 @@
-HEAD
-self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting())
-})
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim())
-})
-
-self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request))
-
 const CACHE_NAME = 'mis-gastos-cache-v1'
 const ASSETS_TO_CACHE = [
   '/',
@@ -20,6 +8,7 @@ const ASSETS_TO_CACHE = [
   '/icon-1024.png'
 ]
 
+// Instalación: precargar assets estáticos en el cache
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -28,6 +17,7 @@ self.addEventListener('install', (event) => {
   )
 })
 
+// Activación: limpiar caches viejos y tomar el control de la app inmediatamente
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) =>
@@ -40,17 +30,30 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+// Intercepción de peticiones: Network First con fallback a Cache / Offline
 self.addEventListener('fetch', (event) => {
+  // Ignorar peticiones que no sean GET (como POST o PUT a la API/Supabase)
   if (event.request.method !== 'GET') return
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        const responseClone = response.clone()
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone))
+        // Solo guardar en cache si la respuesta es válida y no es de la API de Supabase
+        if (response && response.status === 200 && response.type === 'basic') {
+          const responseClone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone))
+        }
         return response
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
+      .catch(() => {
+        // Si no hay conexión a internet, intentar servir desde el cache
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached
+          // Fallback a la página principal si es una navegación
+          if (event.request.mode === 'navigate') {
+            return caches.match('/')
+          }
+        })
+      })
   )
-9a955c4 (Initial commit)
 })

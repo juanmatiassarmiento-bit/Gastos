@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { encryptarTarjeta, ocultarTarjeta } from '../lib/encryption'
-import { Plus, Trash2, CreditCard, Eye, EyeOff } from 'lucide-react'
+import { Plus, Trash2, CreditCard, Eye, EyeOff, Star } from 'lucide-react'
 
 export default function GestorTarjetas({ onTarjetaSeleccionada }) {
   const [tarjetas, setTarjetas] = useState([])
@@ -88,8 +88,15 @@ export default function GestorTarjetas({ onTarjetaSeleccionada }) {
         return
       }
 
-      const numeroEncriptado = encryptarTarjeta(formData.numero_tarjeta)
       const ultimos = formData.numero_tarjeta.replace(/\D/g, '').slice(-4)
+      const duplicada = tarjetas.find(t => t.ultimos_digitos === ultimos)
+      if (duplicada) {
+        alert('❌ Ya existe una tarjeta terminada en ' + ultimos)
+        setCargando(false)
+        return
+      }
+
+      const numeroEncriptado = encryptarTarjeta(formData.numero_tarjeta)
       const banco = formData.banco || obtenerTipoBanco(formData.numero_tarjeta)
 
       const { error } = await supabase
@@ -104,7 +111,8 @@ export default function GestorTarjetas({ onTarjetaSeleccionada }) {
             banco: banco,
             tipo_tarjeta: formData.tipo_tarjeta,
             ultimos_digitos: ultimos,
-            es_activa: true
+            es_activa: true,
+            favorita: false
           }
         ])
 
@@ -140,6 +148,29 @@ export default function GestorTarjetas({ onTarjetaSeleccionada }) {
 
       if (error) throw error
       alert('✅ Tarjeta eliminada')
+      cargarTarjetas()
+    } catch (error) {
+      alert('Error: ' + error.message)
+    }
+  }
+
+  async function alternarFavorita(tarjeta) {
+    try {
+      if (tarjeta.favorita) {
+        await supabase
+          .from('tarjetas')
+          .update({ favorita: false })
+          .eq('id', tarjeta.id)
+      } else {
+        await supabase
+          .from('tarjetas')
+          .update({ favorita: false })
+          .neq('id', tarjeta.id)
+        await supabase
+          .from('tarjetas')
+          .update({ favorita: true })
+          .eq('id', tarjeta.id)
+      }
       cargarTarjetas()
     } catch (error) {
       alert('Error: ' + error.message)
@@ -272,15 +303,27 @@ export default function GestorTarjetas({ onTarjetaSeleccionada }) {
                   <p className="text-sm opacity-90 font-semibold">{tarjeta.banco}</p>
                   <p className="text-xs opacity-75 mt-1">{tarjeta.tipo_tarjeta.toUpperCase()}</p>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    eliminarTarjeta(tarjeta.id)
-                  }}
-                  className="text-red-300 hover:text-red-100 transition"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      alternarFavorita(tarjeta)
+                    }}
+                    className={`transition p-1 rounded ${tarjeta.favorita ? 'text-yellow-300' : 'text-gray-300 hover:text-yellow-300'}`}
+                    title={tarjeta.favorita ? 'Quitar favorita' : 'Marcar como favorita'}
+                  >
+                    <Star className={`w-5 h-5 ${tarjeta.favorita ? 'fill-current' : ''}`} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      eliminarTarjeta(tarjeta.id)
+                    }}
+                    className="text-red-300 hover:text-red-100 transition"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               <div className="mb-6">

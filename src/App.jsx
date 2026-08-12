@@ -246,7 +246,7 @@ export default function App() {
 
   const handleVerifyVerificationCode = async (e) => {
     e.preventDefault();
-    if (verificationCode.length !== 6) {
+    if (verificationCode.length !== 8) {
       setAuthMessage({ type: 'error', text: 'Ingresa los 6 dígitos del código de verificación.' });
       return;
     }

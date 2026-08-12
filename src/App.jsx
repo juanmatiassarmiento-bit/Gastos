@@ -397,7 +397,7 @@ export default function App() {
       return alert('Completa todos los datos requeridos de la tarjeta (titular, número completo, MM/AA y CVV).');
     }
 
-    // 🚫 RESTRICCIÓN: Impide agregar más de una vez la misma tarjeta
+    // Impide agregar más de una vez la misma tarjeta
     const isDuplicate = cards.some(c => c.card_number === cardNumber);
     if (isDuplicate) {
       return alert('⚠️ Esta tarjeta ya se encuentra registrada en tu cuenta.');
@@ -608,7 +608,7 @@ export default function App() {
           
           <div className="auth-container" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
             
-            {/* BANNER IZQUIERDO CON 3 PASOS EXPLICATIVOS */}
+            {/* BANNER IZQUIERDO */}
             <div className="auth-banner" style={{ flex: '1 1 42%', background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)', padding: '32px 24px', color: '#ffffff', display: 'none', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <h2 style={{ fontSize: 26, fontWeight: 700, margin: '0 0 8px 0' }}>Mis Gastos</h2>
@@ -635,7 +635,7 @@ export default function App() {
                     <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>3</div>
                     <div>
                       <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Gestiona e Importa Gastos</h4>
-                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Registra consumos manualmente o carga tu resumen de Mercado Pago CSV.</p>
+                      <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#c7d2fe', lineHeight: 1.4 }}>Registra consumos manualmente o carga tu resumen en CSV, PDF o Excel.</p>
                     </div>
                   </div>
                 </div>
@@ -741,354 +741,406 @@ export default function App() {
                         if (authMessage?.type === 'error') setAuthMessage(null);
                       }}
                       required
-                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 18, letterSpacing: 6, textAlign: 'center', boxSizing: 'border-box', outline: 'none' }}
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 20, letterSpacing: 8, textAlign: 'center', boxSizing: 'border-box', outline: 'none' }}
                     />
                   </div>
                 )}
 
                 <button
                   type="submit"
-                  disabled={authMode === 'otp' && verifyingCode}
-                  style={{ width: '100%', padding: '14px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 15, cursor: 'pointer', marginTop: 8 }}
+                  disabled={verifyingCode}
+                  style={{ width: '100%', padding: '12px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
                 >
-                  {authMode === 'login' && 'Ingresar'}
-                  {authMode === 'signup' && 'Registrarse'}
+                  {authMode === 'login' && 'Iniciar Sesión'}
+                  {authMode === 'signup' && 'Crear Cuenta'}
                   {authMode === 'reset' && 'Enviar Correo de Recuperación'}
-                  {authMode === 'otp' && (verifyingCode ? (verificationCodeSent ? 'Verificando...' : 'Enviando código...') : (verificationCodeSent ? 'Verificar e ingresar' : 'Enviar código de verificación'))}
+                  {authMode === 'otp' && (verificationCodeSent ? (verifyingCode ? 'Verificando...' : 'Ingresar con Código') : (verifyingCode ? 'Enviando...' : 'Enviar Código'))}
                 </button>
               </form>
 
-              <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#4b5563', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ marginTop: 20, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {authMode === 'login' && (
                   <>
-                    <div>¿No tienes cuenta aún? <span onClick={() => setAuthMode('signup')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Regístrate aquí</span></div>
-                    <div>¿No recuerdas tu contraseña? <span onClick={openCodeLogin} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Ingresa con un código</span></div>
+                    <button type="button" onClick={openCodeLogin} style={{ background: 'none', border: 'none', color: '#4f46e5', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      🔑 Ingresar con un código temporal al correo
+                    </button>
+                    <span style={{ fontSize: 13, color: '#6b7280' }}>
+                      ¿No tienes una cuenta?{' '}
+                      <span onClick={() => { setAuthMode('signup'); setAuthMessage(null); }} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>
+                        Regístrate aquí
+                      </span>
+                    </span>
                   </>
                 )}
+
                 {authMode === 'signup' && (
-                  <div>¿Ya tienes cuenta? <span onClick={() => setAuthMode('login')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>Inicia sesión aquí</span></div>
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>
+                    ¿Ya tienes cuenta?{' '}
+                    <span onClick={() => { setAuthMode('login'); setAuthMessage(null); }} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>
+                      Inicia sesión
+                    </span>
+                  </span>
                 )}
-                {authMode === 'reset' && (
-                  <div><span onClick={() => setAuthMode('login')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>← Volver a Iniciar Sesión</span></div>
-                )}
-                {authMode === 'otp' && (
-                  <div>
-                    {verificationCodeSent && <span onClick={() => { setVerificationCode(''); setVerificationCodeSent(false); setAuthMessage(null); }} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer', marginRight: 14 }}>Enviar otro código</span>}
-                    <span onClick={() => setAuthMode('login')} style={{ color: '#4f46e5', fontWeight: 600, cursor: 'pointer' }}>← Volver a Iniciar Sesión</span>
-                  </div>
+
+                {(authMode === 'reset' || authMode === 'otp') && (
+                  <button type="button" onClick={() => { setAuthMode('login'); setAuthMessage(null); setVerificationCodeSent(false); }} style={{ background: 'none', border: 'none', color: '#4f46e5', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    ← Volver al inicio de sesión
+                  </button>
                 )}
               </div>
             </div>
           </div>
-
         </div>
       </div>
     );
   }
 
-  // VISTA PANEL
-  return (
-    <div style={{ minHeight: '100vh', background: '#0b0f19', color: '#f3f4f6', fontFamily: 'Segoe UI, sans-serif', padding: '16px', boxSizing: 'border-box' }}>
-      <style>{`
-        * { box-sizing: border-box; }
-        .form-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 20px; }
-        .form-row { display: flex; flex-direction: column; gap: 10px; }
-        .import-box { display: flex; flex-direction: column; gap: 12px; }
-        @media (min-width: 640px) {
-          .form-row { flex-direction: row; }
-          .import-box { flex-direction: row; align-items: center; justify-content: space-between; }
-        }
-        @media (min-width: 850px) {
-          .form-grid { grid-template-columns: 1fr 1fr; }
-        }
-      `}</style>
-
-      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-        
-        {isRecoverySession && (
-          <div style={{ background: '#312e81', border: '1px solid #6366f1', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-            <h3 style={{ margin: '0 0 6px 0', fontSize: 16, color: '#fff' }}>🔑 Establecer Nueva Contraseña</h3>
-            <p style={{ margin: '0 0 12px 0', fontSize: 13, color: '#c7d2fe' }}>
-              Has ingresado mediante un enlace de recuperación. Ingresa tu nueva contraseña:
-            </p>
-            <form onSubmit={handleUpdatePassword} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+  // VISTA RECUPERACIÓN DE CONTRASEÑA
+  if (isRecoverySession) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif' }}>
+        <div style={{ width: '100%', maxWidth: 400, background: '#ffffff', borderRadius: 16, padding: '32px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+          <h3 style={{ fontSize: 20, fontWeight: 700, color: '#111827', margin: '0 0 8px 0' }}>Establecer Nueva Contraseña</h3>
+          <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 20px 0' }}>Ingresa la nueva clave con la que accederás a tu cuenta.</p>
+          <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>NUEVA CONTRASEÑA</label>
               <input
                 type="password"
-                placeholder="Escribe tu nueva contraseña"
+                placeholder="Mínimo 6 caracteres"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
-                style={{ flex: 1, minWidth: 200, padding: 10, borderRadius: 8, border: '1px solid #4f46e5', background: '#0b0f19', color: '#fff', fontSize: 14, outline: 'none' }}
+                style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
               />
+            </div>
+            <button
+              type="submit"
+              disabled={updatingPassword}
+              style={{ width: '100%', padding: '12px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+            >
+              {updatingPassword ? 'Guardando...' : 'Actualizar Contraseña'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // VISTA PRINCIPAL (PANEL DE CONTROL)
+  return (
+    <div style={{ minHeight: '100vh', background: '#f3f4f6', color: '#1f2937', fontFamily: 'Segoe UI, sans-serif' }}>
+      {/* NAVBAR */}
+      <header style={{ background: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111827' }}>Mis Gastos</h1>
+          <span style={{ fontSize: 12, color: '#6b7280' }}>{session.user.email}</span>
+        </div>
+        <button
+          onClick={handleLogout}
+          style={{ padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+        >
+          Cerrar Sesión
+        </button>
+      </header>
+
+      <main style={{ maxWidth: 1100, margin: '24px auto', padding: '0 16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+        {/* SECCIÓN IZQUIERDA: FORMULARIOS */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* REGISTRAR TARJETA */}
+          <div style={{ background: '#ffffff', padding: 20, borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px 0', color: '#111827' }}>Registrar Nueva Tarjeta</h2>
+            
+            {/* Botones de Verificación / Validación */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+              <button
+                type="button"
+                onClick={handleCardBiometricVerification}
+                style={{ flex: 1, padding: '10px', background: cardVerificationMethod === 'biometric' ? '#dcfce7' : '#f3f4f6', border: `1px solid ${cardVerificationMethod === 'biometric' ? '#22c55e' : '#d1d5db'}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
+                {cardVerificationMethod === 'biometric' ? '✓ Huella Validada' : '👆 Probar Biometría'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCameraOpen(!cameraOpen)}
+                style={{ flex: 1, padding: '10px', background: cardVerificationMethod === 'camera' ? '#dcfce7' : '#f3f4f6', border: `1px solid ${cardVerificationMethod === 'camera' ? '#22c55e' : '#d1d5db'}`, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+              >
+                {cardVerificationMethod === 'camera' ? '✓ Cámara Validada' : '📷 Usar Cámara'}
+              </button>
+            </div>
+
+            {/* Modal de Cámara */}
+            {cameraOpen && (
+              <div style={{ marginBottom: 16, background: '#000', borderRadius: 8, overflow: 'hidden', padding: 8, textAlign: 'center' }}>
+                {cameraError ? (
+                  <p style={{ color: '#ef4444', fontSize: 12, margin: 8 }}>{cameraError}</p>
+                ) : (
+                  <>
+                    <video ref={cameraVideoRef} autoPlay playsInline style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 6 }} />
+                    <button type="button" onClick={confirmCameraVerification} style={{ marginTop: 8, padding: '6px 16px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                      Confirmar Validación por Cámara
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            <form onSubmit={handleAddCard} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 4 }}>TITULAR</label>
+                <input
+                  type="text"
+                  placeholder="Nombre como figura en la tarjeta"
+                  value={newCardHolder}
+                  onChange={(e) => setNewCardHolder(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563' }}>NÚMERO DE TARJETA</label>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#4f46e5' }}>{detectedBrand}</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="16 dígitos de la tarjeta"
+                  value={cardNumber}
+                  onChange={handleCardNumberChange}
+                  style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 4 }}>VENCIMIENTO</label>
+                  <input
+                    type="text"
+                    placeholder="MM/AA"
+                    value={expDate}
+                    onChange={handleExpDateChange}
+                    style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 4 }}>CVV</label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    placeholder="123"
+                    value={cvv}
+                    onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))}
+                    style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
               <button
                 type="submit"
-                disabled={updatingPassword}
-                style={{ padding: '10px 18px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
+                style={{ width: '100%', padding: '10px', background: '#10b981', color: '#ffffff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginTop: 4 }}
               >
-                {updatingPassword ? 'Guardando...' : 'Guardar Contraseña'}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* HEADER */}
-        <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 16, borderBottom: '1px solid #1f2937', marginBottom: 20, gap: 10 }}>
-          <div style={{ minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Mis Gastos</h1>
-            <span style={{ fontSize: 12, color: '#9ca3af', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session.user.email}</span>
-          </div>
-          <button onClick={handleLogout} style={{ background: '#1f2937', color: '#9ca3af', border: '1px solid #374151', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>
-            Salir
-          </button>
-        </div>
-
-        {/* LISTADO DE TARJETAS REGISTRADAS CON ESTRELLA AMARILLA FAVORITA */}
-        {cards.length > 0 && (
-          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-            <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Mis Tarjetas Registradas</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
-              {cards.map(c => (
-                <div key={c.id} style={{ background: c.is_favorite ? '#1e1b4b' : '#0b0f19', border: c.is_favorite ? '1px solid #6366f1' : '1px solid #374151', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                    <div>
-                      <span style={{ fontSize: 10, textTransform: 'uppercase', color: '#818cf8', fontWeight: 700 }}>{c.brand}</span>
-                      <h4 style={{ margin: '2px 0 0 0', fontSize: 14, color: '#fff' }}>**** {c.last_digits}</h4>
-                    </div>
-                    {/* Botón Estrella Amarilla / Favorita */}
-                    <button 
-                      type="button" 
-                      onClick={() => handleToggleFavorite(c.id)}
-                      title={c.is_favorite ? 'Tarjeta Favorita' : 'Marcar como Favorita'}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 18, opacity: c.is_favorite ? 1 : 0.4 }}
-                    >
-                      ⭐
-                    </button>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, paddingTop: 6, borderTop: '1px solid #1f2937' }}>
-                    <span style={{ fontSize: 11, color: '#9ca3af' }}>{c.holder}</span>
-                    <button 
-                      type="button" 
-                      onClick={() => handleDeleteCard(c.id)}
-                      style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 11 }}
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* PANEL SELECCIÓN DE TARJETA E IMPORTACIÓN */}
-        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-            <div style={{ width: '100%', maxWidth: 350 }}>
-              <span style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>
-                TARJETA SELECCIONADA:
-              </span>
-              <select 
-                value={selectedCardId} 
-                onChange={e => setSelectedCardId(e.target.value)} 
-                style={{ width: '100%', background: '#0b0f19', color: '#fff', border: '1px solid #374151', padding: '10px', borderRadius: 8, fontSize: 14, outline: 'none', cursor: 'pointer' }}
-              >
-                <option value="all">Todas las tarjetas</option>
-                {cards.map(c => (
-                  <option key={c.id} value={c.id}>{c.is_favorite ? '⭐ ' : ''}{c.brand} **** {c.last_digits} ({c.holder})</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <span style={{ fontSize: 11, color: '#9ca3af', display: 'block' }}>TOTAL FILTRADO</span>
-              <h2 style={{ margin: 0, color: '#818cf8', fontSize: 24, fontWeight: 700 }}>${totalSpent.toFixed(2)}</h2>
-            </div>
-          </div>
-
-          <div className="import-box" style={{ borderTop: '1px solid #1f2937', paddingTop: 14 }}>
-            <div>
-              <h4 style={{ margin: 0, color: '#818cf8', fontSize: 14 }}>📥 Importar movimientos</h4>
-              <p style={{ margin: '2px 0 0 0', fontSize: 12, color: '#9ca3af' }}>CSV, Excel, TXT/TSV, JSON o PDF con texto. Asocia automáticamente los consumos a la tarjeta elegida.</p>
-            </div>
-            <label style={{ background: importing ? '#4b5563' : '#4f46e5', color: '#fff', padding: '10px 16px', borderRadius: 8, fontWeight: 600, cursor: importing ? 'not-allowed' : 'pointer', fontSize: 13, textAlign: 'center', whiteSpace: 'nowrap' }}>
-              {importing ? 'Importando...' : '⬆️ Seleccionar archivo'}
-              <input type="file" accept=".csv,.txt,.tsv,.xls,.xlsx,.json,.pdf" onChange={handleImportFile} disabled={importing} style={{ display: 'none' }} />
-            </label>
-          </div>
-        </div>
-
-        {/* FORMULARIOS: TARJETA Y GASTO MANUAL */}
-        <div className="form-grid">
-          
-          {/* REGISTRAR TARJETA */}
-          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16 }}>
-            <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Registrar Tarjeta</h3>
-            <div style={{ marginBottom: 14, padding: 12, borderRadius: 8, background: '#172554', border: '1px solid #3730a3' }}>
-              <p style={{ margin: '0 0 8px 0', fontSize: 13, color: '#e0e7ff', fontWeight: 600 }}>Valida el registro antes de guardar la tarjeta</p>
-              <p style={{ margin: '0 0 10px 0', fontSize: 12, color: '#c7d2fe' }}>Elige huella/biometría del dispositivo o cámara. No guardamos imágenes de la cámara.</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                <button type="button" onClick={handleCardBiometricVerification} style={{ padding: '8px 10px', background: cardVerificationMethod === 'biometric' ? '#059669' : '#312e81', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                  {cardVerificationMethod === 'biometric' ? '✓ Huella verificada' : 'Usar huella / biometría'}
-                </button>
-                <button type="button" onClick={() => setCameraOpen(true)} style={{ padding: '8px 10px', background: cardVerificationMethod === 'camera' ? '#059669' : '#312e81', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                  {cardVerificationMethod === 'camera' ? '✓ Cámara verificada' : 'Usar cámara'}
-                </button>
-              </div>
-              {cameraOpen && (
-                <div style={{ marginTop: 12 }}>
-                  {cameraError ? <p style={{ margin: 0, color: '#fca5a5', fontSize: 12 }}>{cameraError}</p> : <video ref={cameraVideoRef} autoPlay playsInline style={{ width: '100%', maxHeight: 190, borderRadius: 6, background: '#020617' }} />}
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    <button type="button" onClick={confirmCameraVerification} disabled={!!cameraError} style={{ padding: '8px 10px', background: '#059669', color: '#fff', border: 'none', borderRadius: 6, cursor: cameraError ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600, opacity: cameraError ? 0.5 : 1 }}>Confirmar con cámara</button>
-                    <button type="button" onClick={() => setCameraOpen(false)} style={{ padding: '8px 10px', background: '#374151', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Cancelar</button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <form onSubmit={handleAddCard} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <input 
-                type="text" 
-                placeholder="Nombre del Titular" 
-                value={newCardHolder} 
-                onChange={e => setNewCardHolder(e.target.value)} 
-                style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', outline: 'none', fontSize: 14 }} 
-              />
-
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <input 
-                  type="text" 
-                  placeholder="Número completo de Tarjeta" 
-                  maxLength={16} 
-                  value={cardNumber} 
-                  onChange={handleCardNumberChange} 
-                  style={{ padding: 10, width: '100%', background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', outline: 'none', fontSize: 14 }} 
-                />
-                <span style={{ position: 'absolute', right: 10, fontSize: 11, background: '#374151', color: '#60a5fa', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
-                  {detectedBrand}
-                </span>
-              </div>
-
-              <div className="form-row">
-                <input 
-                  type="text" 
-                  placeholder="MM/AA" 
-                  maxLength={5} 
-                  value={expDate} 
-                  onChange={handleExpDateChange} 
-                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }} 
-                />
-                <input 
-                  type="password" 
-                  placeholder="CVV" 
-                  maxLength={4} 
-                  value={cvv} 
-                  onChange={e => setCvv(e.target.value.replace(/\D/g, ''))} 
-                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }} 
-                />
-              </div>
-
-              <button type="submit" style={{ padding: 10, background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
                 Guardar Tarjeta
               </button>
             </form>
           </div>
 
-          {/* CARGAR GASTO MANUAL */}
-          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16 }}>
-            <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Cargar Gasto Manual</h3>
-            <form onSubmit={handleAddExpense} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div className="form-row">
-                <input 
-                  type="text" 
-                  placeholder="Concepto" 
-                  value={description} 
-                  onChange={e => setDescription(e.target.value)} 
-                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 2, outline: 'none', fontSize: 14 }} 
-                />
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  placeholder="Monto" 
-                  value={amount} 
-                  onChange={e => setAmount(e.target.value)} 
-                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }} 
-                />
-              </div>
-              <div className="form-row">
-                <select 
-                  value={category} 
-                  onChange={e => setCategory(e.target.value)} 
-                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }}
+          {/* AGREGAR GASTO MANUAL */}
+          <div style={{ background: '#ffffff', padding: 20, borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px 0', color: '#111827' }}>Registrar Gasto Manual</h2>
+            <form onSubmit={handleAddExpense} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 4 }}>TARJETA</label>
+                <select
+                  value={manualCardId}
+                  onChange={(e) => setManualCardId(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
                 >
-                  <option value="General">General</option>
-                  <option value="Comida">Comida</option>
-                  <option value="Servicios">Servicios</option>
-                  <option value="Entretenimiento">Entretenimiento</option>
-                </select>
-                <select 
-                  value={manualCardId} 
-                  onChange={e => setManualCardId(e.target.value)} 
-                  style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }}
-                >
-                  {cards.map(c => (
-                    <option key={c.id} value={c.id}>{c.is_favorite ? '⭐ ' : ''}{c.brand} **** {c.last_digits}</option>
+                  <option value="" disabled>Selecciona una tarjeta</option>
+                  {cards.map((card) => (
+                    <option key={card.id} value={card.id}>
+                      {card.brand} - **** {card.last_digits} ({card.holder})
+                    </option>
                   ))}
                 </select>
               </div>
-              <button type="submit" style={{ padding: 10, background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
-                Guardar Gasto
+
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 4 }}>DESCRIPCIÓN</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Supermercado, Nafta, Netflix"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 4 }}>MONTO ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 4 }}>CATEGORÍA</label>
+                  <input
+                    type="text"
+                    placeholder="General"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                style={{ width: '100%', padding: '10px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginTop: 4 }}
+              >
+                Agregar Gasto
               </button>
             </form>
           </div>
-
         </div>
 
-        {/* HISTORIAL DE CONSUMOS */}
-        <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16 }}>
-          <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Historial de Consumos</h3>
-          {filteredExpenses.length === 0 ? (
-            <p style={{ color: '#9ca3af', fontSize: 13, margin: 0 }}>Sin registros.</p>
-          ) : (
-            <div style={{ overflowX: 'auto', width: '100%' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13, minWidth: 500 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #1f2937', color: '#9ca3af' }}>
-                    <th style={{ padding: '10px 8px' }}>Descripción</th>
-                    <th style={{ padding: '10px 8px' }}>Monto</th>
-                    <th style={{ padding: '10px 8px' }}>Categoría</th>
-                    <th style={{ padding: '10px 8px' }}>Tarjeta</th>
-                    <th style={{ padding: '10px 8px', textAlign: 'right' }}>Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredExpenses.map(exp => {
-                    const matchedCard = cards.find(c => c.id === exp.card_id);
-                    const cardLabel = matchedCard 
-                      ? `${matchedCard.is_favorite ? '⭐ ' : ''}${matchedCard.brand} **** ${matchedCard.last_digits}`
-                      : 'Desconocida';
+        {/* SECCIÓN DERECHA: TARJETAS, IMPORTADOR Y LISTADO DE GASTOS */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* TARJETAS REGISTRADAS */}
+          <div style={{ background: '#ffffff', padding: 20, borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px 0', color: '#111827' }}>Tus Tarjetas</h2>
+            {cards.length === 0 ? (
+              <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>No tienes tarjetas registradas aún.</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                {cards.map((card) => (
+                  <div
+                    key={card.id}
+                    style={{
+                      background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                      color: '#ffffff',
+                      padding: 16,
+                      borderRadius: 10,
+                      position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      height: 120,
+                      border: card.is_favorite ? '2px solid #eab308' : '1px solid transparent'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>{card.brand}</span>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => handleToggleFavorite(card.id)}
+                          title="Marcar como favorita"
+                          style={{ background: 'none', border: 'none', color: card.is_favorite ? '#facc15' : '#64748b', cursor: 'pointer', fontSize: 16, padding: 0 }}
+                        >
+                          ★
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCard(card.id)}
+                          title="Eliminar tarjeta"
+                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14, padding: 0 }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 16, letterSpacing: 2, fontFamily: 'monospace' }}>
+                      **** **** **** {card.last_digits}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#cbd5e1' }}>
+                      <span>{card.holder}</span>
+                      <span>{card.exp_date}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-                    return (
-                      <tr key={exp.id} style={{ borderBottom: '1px solid #1f2937' }}>
-                        <td style={{ padding: '10px 8px', color: '#fff' }}>{exp.description}</td>
-                        <td style={{ padding: '10px 8px', color: '#34d399', fontWeight: 600 }}>${Number(exp.amount).toFixed(2)}</td>
-                        <td style={{ padding: '10px 8px', color: '#9ca3af' }}>{exp.category}</td>
-                        <td style={{ padding: '10px 8px', color: '#818cf8' }}>{cardLabel}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'right' }}>
-                          <button 
-                            onClick={() => handleDeleteExpense(exp.id)}
-                            style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 12, padding: '4px 8px' }}
+          {/* LISTADO DE GASTOS E IMPORTACIÓN */}
+          <div style={{ background: '#ffffff', padding: 20, borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#111827' }}>Historial de Gastos</h2>
+                <span style={{ fontSize: 13, color: '#6b7280' }}>Total: <strong style={{ color: '#111827' }}>${totalSpent.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong></span>
+              </div>
+
+              {/* Filtro por Tarjeta */}
+              <select
+                value={selectedCardId}
+                onChange={(e) => setSelectedCardId(e.target.value)}
+                style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+              >
+                <option value="all">Todas las tarjetas</option>
+                {cards.map((c) => (
+                  <option key={c.id} value={c.id}>{c.brand} - **** {c.last_digits}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Botón Importar Archivo */}
+            <div style={{ marginBottom: 16, padding: 12, background: '#f9fafb', borderRadius: 8, border: '1px dashed #d1d5db', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block' }}>Importar Movimientos</span>
+                <span style={{ fontSize: 11, color: '#6b7280' }}>Soporta CSV, Excel, PDF, JSON</span>
+              </div>
+              <label style={{ padding: '6px 12px', background: importing ? '#9ca3af' : '#3b82f6', color: '#fff', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: importing ? 'not-allowed' : 'pointer' }}>
+                {importing ? 'Cargando...' : 'Subir Archivo'}
+                <input type="file" accept=".csv,.xlsx,.xls,.pdf,.json,.txt,.tsv" onChange={handleImportFile} disabled={importing} style={{ display: 'none' }} />
+              </label>
+            </div>
+
+            {/* Tabla / Lista de Gastos */}
+            {filteredExpenses.length === 0 ? (
+              <p style={{ fontSize: 13, color: '#6b7280', margin: '16px 0', textAlign: 'center' }}>No hay consumos registrados para el filtro seleccionado.</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #e5e7eb', color: '#6b7280' }}>
+                      <th style={{ padding: '8px 4px', fontWeight: 600 }}>Concepto</th>
+                      <th style={{ padding: '8px 4px', fontWeight: 600 }}>Categoría</th>
+                      <th style={{ padding: '8px 4px', fontWeight: 600, textAlign: 'right' }}>Monto</th>
+                      <th style={{ padding: '8px 4px', width: 30 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredExpenses.map((expense) => (
+                      <tr key={expense.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: '10px 4px', fontWeight: 500, color: '#111827' }}>{expense.description}</td>
+                        <td style={{ padding: '10px 4px', color: '#6b7280' }}>
+                          <span style={{ background: '#f3f4f6', padding: '2px 8px', borderRadius: 12, fontSize: 11 }}>{expense.category || 'General'}</span>
+                        </td>
+                        <td style={{ padding: '10px 4px', fontWeight: 600, textAlign: 'right', color: '#059669' }}>
+                          ${Number(expense.amount).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ padding: '10px 4px', textAlign: 'center' }}>
+                          <button
+                            onClick={() => handleDeleteExpense(expense.id)}
+                            title="Eliminar gasto"
+                            style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: 14 }}
                           >
-                            Eliminar
+                            ✕
                           </button>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
-
-      </div>
+      </main>
     </div>
   );
 }

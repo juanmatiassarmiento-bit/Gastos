@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+HEAD
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
@@ -9,7 +9,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   event.respondWith(fetch(event.request))
-=======
+
 const CACHE_NAME = 'mis-gastos-cache-v1'
 const ASSETS_TO_CACHE = [
   '/',
@@ -52,5 +52,5 @@ self.addEventListener('fetch', (event) => {
       })
       .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
   )
->>>>>>> 9a955c4 (Initial commit)
+9a955c4 (Initial commit)
 })

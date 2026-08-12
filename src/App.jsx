@@ -148,7 +148,10 @@ export default function App() {
     const { data, error } = await supabase.from('cards').select('*');
     if (!error && data) {
       setCards(data);
-      if (data.length > 0 && !manualCardId) setManualCardId(data[0].id);
+      if (data.length > 0 && !manualCardId) {
+        const favCard = data.find(c => c.is_favorite);
+        setManualCardId(favCard ? favCard.id : data[0].id);
+      }
     }
   };
 
@@ -347,6 +350,37 @@ export default function App() {
     setExpDate(val.slice(0, 5));
   };
 
+  // Marcar/Desmarcar una sola tarjeta como favorita (Butterfly / Mariposa)
+  const handleToggleFavorite = async (cardId) => {
+    const targetCard = cards.find(c => c.id === cardId);
+    if (!targetCard) return;
+
+    const newFavoriteStatus = !targetCard.is_favorite;
+
+    // Si se activa como favorita, se quita el estado a las demás tarjetas en la BD
+    if (newFavoriteStatus) {
+      await supabase
+        .from('cards')
+        .update({ is_favorite: false })
+        .eq('user_id', session?.user?.id);
+    }
+
+    const { error } = await supabase
+      .from('cards')
+      .update({ is_favorite: newFavoriteStatus })
+      .eq('id', cardId);
+
+    if (!error) {
+      setCards(cards.map(c => {
+        if (c.id === cardId) return { ...c, is_favorite: newFavoriteStatus };
+        if (newFavoriteStatus) return { ...c, is_favorite: false };
+        return c;
+      }));
+    } else {
+      alert('Error al actualizar tarjeta favorita: ' + error.message);
+    }
+  };
+
   const handleAddCard = async (e) => {
     e.preventDefault();
     if (!cardVerificationMethod) {
@@ -356,9 +390,14 @@ export default function App() {
       return alert('Completa todos los datos requeridos de la tarjeta (titular, número completo, MM/AA y CVV).');
     }
 
+    // 🚫 RESTRICCIÓN: Impide agregar más de una vez la misma tarjeta
+    const isDuplicate = cards.some(c => c.card_number === cardNumber);
+    if (isDuplicate) {
+      return alert('⚠️ Esta tarjeta ya se encuentra registrada en tu cuenta.');
+    }
+
     const lastDigits = cardNumber.slice(-4);
 
-    // Mapeo corregido enviando card_number para coincidir con la restricción de Supabase
     const cardPayload = {
       holder: newCardHolder,
       card_number: cardNumber,
@@ -366,7 +405,8 @@ export default function App() {
       brand: detectedBrand,
       exp_date: expDate,
       cvv: cvv,
-      user_id: session?.user?.id
+      user_id: session?.user?.id,
+      is_favorite: cards.length === 0
     };
 
     let { data, error } = await supabase.from('cards').insert([cardPayload]).select();
@@ -383,6 +423,19 @@ export default function App() {
       setDetectedBrand('Desconocida');
       setCardVerificationMethod('');
       alert('¡Tarjeta guardada con éxito!');
+    }
+  };
+
+  const handleDeleteCard = async (cardId) => {
+    if (!window.confirm('¿Seguro que deseas eliminar esta tarjeta? Se mantendrán los consumos asociados.')) return;
+    const { error } = await supabase.from('cards').delete().eq('id', cardId);
+    if (!error) {
+      const updated = cards.filter(c => c.id !== cardId);
+      setCards(updated);
+      if (selectedCardId === cardId) setSelectedCardId('all');
+      if (manualCardId === cardId) setManualCardId(updated.length > 0 ? updated[0].id : '');
+    } else {
+      alert('Error al eliminar tarjeta: ' + error.message);
     }
   };
 
@@ -807,6 +860,44 @@ export default function App() {
           </button>
         </div>
 
+        {/* LISTADO DE TARJETAS REGISTRADAS CON MARIPOSA FAVORITA */}
+        {cards.length > 0 && (
+          <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: 15, color: '#fff' }}>Mis Tarjetas Registradas</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+              {cards.map(c => (
+                <div key={c.id} style={{ background: c.is_favorite ? '#1e1b4b' : '#0b0f19', border: c.is_favorite ? '1px solid #6366f1' : '1px solid #374151', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                    <div>
+                      <span style={{ fontSize: 10, textTransform: 'uppercase', color: '#818cf8', fontWeight: 700 }}>{c.brand}</span>
+                      <h4 style={{ margin: '2px 0 0 0', fontSize: 14, color: '#fff' }}>**** {c.last_digits}</h4>
+                    </div>
+                    {/* Botón Mariposa / Favorita */}
+                    <button 
+                      type="button" 
+                      onClick={() => handleToggleFavorite(c.id)}
+                      title={c.is_favorite ? 'Tarjeta Favorita' : 'Marcar como Favorita'}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 18, opacity: c.is_favorite ? 1 : 0.4 }}
+                    >
+                      🦋
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, paddingTop: 6, borderTop: '1px solid #1f2937' }}>
+                    <span style={{ fontSize: 11, color: '#9ca3af' }}>{c.holder}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => handleDeleteCard(c.id)}
+                      style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: 11 }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* PANEL SELECCIÓN DE TARJETA E IMPORTACIÓN */}
         <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 16, marginBottom: 20 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16 }}>
@@ -821,7 +912,7 @@ export default function App() {
               >
                 <option value="all">Todas las tarjetas</option>
                 {cards.map(c => (
-                  <option key={c.id} value={c.id}>{c.brand} **** {c.last_digits} ({c.holder})</option>
+                  <option key={c.id} value={c.id}>{c.is_favorite ? '🦋 ' : ''}{c.brand} **** {c.last_digits} ({c.holder})</option>
                 ))}
               </select>
             </div>
@@ -956,7 +1047,7 @@ export default function App() {
                   style={{ padding: 10, background: '#0b0f19', border: '1px solid #374151', borderRadius: 6, color: '#fff', flex: 1, outline: 'none', fontSize: 14 }}
                 >
                   {cards.map(c => (
-                    <option key={c.id} value={c.id}>{c.brand} **** {c.last_digits}</option>
+                    <option key={c.id} value={c.id}>{c.is_favorite ? '🦋 ' : ''}{c.brand} **** {c.last_digits}</option>
                   ))}
                 </select>
               </div>
@@ -989,7 +1080,7 @@ export default function App() {
                   {filteredExpenses.map(exp => {
                     const matchedCard = cards.find(c => c.id === exp.card_id);
                     const cardLabel = matchedCard 
-                      ? `${matchedCard.brand} **** ${matchedCard.last_digits}`
+                      ? `${matchedCard.is_favorite ? '🦋 ' : ''}${matchedCard.brand} **** ${matchedCard.last_digits}`
                       : 'Desconocida';
 
                     return (

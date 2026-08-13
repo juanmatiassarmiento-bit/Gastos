@@ -332,22 +332,22 @@ export default function App() {
     }
   };
 
-  // FAVORITO PERSISTENTE DEFINITIVO
+  /// FAVORITO PERSISTENTE CORREGIDO (Usa .neq en lugar de .ne)
   const handleToggleFavorite = async (id) => {
     try {
       const target = cards.find((c) => c.id === id);
       const nextState = !target.is_favorite;
 
-      // 1. Si vamos a marcar como favorita, desmarcamos las demás tarjetas del usuario en Supabase
+      // 1. Si marcamos como favorita, desmarcamos las demás tarjetas del usuario usando .neq()
       if (nextState) {
         await supabase
           .from('cards')
           .update({ is_favorite: false })
           .eq('user_id', session.user.id)
-          .ne('id', id);
+          .neq('id', id); // <--- CORREGIDO: neq en vez de ne
       }
 
-      // 2. Cambiamos el estado de la tarjeta objetivo
+      // 2. Cambiamos el estado de la tarjeta seleccionada
       const { error } = await supabase
         .from('cards')
         .update({ is_favorite: nextState })
@@ -355,7 +355,7 @@ export default function App() {
 
       if (error) throw error;
 
-      // 3. Volvemos a pedir las tarjetas a Supabase para sincronizar exactamente lo que hay guardado
+      // 3. Recargamos la lista desde Supabase para garantizar sincronización perfecta
       await fetchCards();
     } catch (err) {
       alert('Error actualizando favorita: ' + err.message);

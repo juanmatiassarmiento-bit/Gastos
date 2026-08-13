@@ -332,35 +332,54 @@ export default function App() {
     }
   };
 
-  // FAVORITO 100% FUNCIONAL Y PERSISTENTE
+ // FAVORITO GARANTIZADO
   const handleToggleFavorite = async (id) => {
     try {
       const target = cards.find((c) => c.id === id);
+      if (!target) return;
+
       const nextState = !target.is_favorite;
 
-      // 1. Si vamos a activar una nueva favorita, primero buscamos si ya hay otra favorita y la desmarcamos
+      // 1. Actualización visual INMEDIATA en React
+      const updatedCards = cards.map((card) => {
+        if (card.id === id) {
+          return { ...card, is_favorite: nextState };
+        }
+        // Si marcamos esta como favorita, desmarcamos las demás en pantalla
+        return nextState ? { ...card, is_favorite: false } : card;
+      });
+
+      // Ordenar para que la favorita quede siempre arriba en pantalla
+      updatedCards.sort((a, b) => (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0));
+      setCards(updatedCards);
+
+      // 2. Persistir en Supabase
       if (nextState) {
-        const currentFavorite = cards.find((c) => c.is_favorite && c.id !== id);
-        if (currentFavorite) {
+        // Desmarcar las otras tarjetas del usuario en Supabase
+        const otherFavorites = cards.filter((c) => c.id !== id && c.is_favorite);
+        for (const favCard of otherFavorites) {
           await supabase
             .from('cards')
             .update({ is_favorite: false })
-            .eq('id', currentFavorite.id);
+            .match({ id: favCard.id, user_id: session.user.id });
         }
       }
 
-      // 2. Marcamos o desmarcamos la tarjeta seleccionada
+      // Marcar / Desmarcar la elegida
       const { error } = await supabase
         .from('cards')
         .update({ is_favorite: nextState })
-        .eq('id', id);
+        .match({ id: id, user_id: session.user.id });
 
-      if (error) throw error;
-
-      // 3. Volvemos a traer las tarjetas de Supabase (ya vienen ordenadas por is_favorite desc)
-      await fetchCards();
+      if (error) {
+        console.error('Error al guardar en Supabase:', error);
+        // Si falla la BD, deshacemos el cambio local para notificar
+        fetchCards();
+        alert('No se pudo guardar la favorita en la base de datos: ' + error.message);
+      }
     } catch (err) {
-      alert('Error actualizando favorita: ' + err.message);
+      alert('Error al cambiar favorita: ' + err.message);
+      fetchCards();
     }
   };
 

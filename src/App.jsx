@@ -610,7 +610,7 @@ export default function App() {
   // VISTA PRINCIPAL (DASHBOARD AUTENTICADO)
   // ------------------------------------------
   return (
-    <div style={{ minHeight: '100vh', background: '#001c55', fontFamily: 'Segoe UI, sans-serif', color: '#1f2937' }}>
+    <div style={{ minHeight: '100vh', background: '#f3f4f6', fontFamily: 'Segoe UI, sans-serif', color: '#1f2937' }}>
       {/* Header */}
       <header style={{ background: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

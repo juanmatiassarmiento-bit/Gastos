@@ -408,16 +408,16 @@ export default function App() {
 
   const totalSpent = filteredExpenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
- // ------------------------------------------
+  // ------------------------------------------
   // VISTA: LOGIN / REGISTRO CON BARRA LATERAL RESPONSIVA
   // ------------------------------------------
   if (!session) {
     return (
-      <div style={{ minHeight: 'auto', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif' }}>
+      <div style={{ minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'hidden', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', width: '100%', maxWidth: '900px', background: '#ffffff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)' }}>
           
           {/* LATERAL AZUL CON PASOS (Se adapta en móviles) */}
-          <div style={{ backgroundColor: '#3b82f6', color: '#ffffff', padding: '28px', flex: '1 1 280px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ backgroundColor: '#3b82f6', color: '#ffffff', padding: '28px', flex: '1 1 280px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800 }}>Mis Gastos</h2>
               <p style={{ fontSize: '13px', opacity: 0.9, marginTop: '6px', marginBottom: '20px', lineHeight: 1.4 }}>
@@ -457,7 +457,7 @@ export default function App() {
           </div>
 
           {/* FORMULARIO DE AUTENTICACIÓN */}
-          <div style={{ flex: '1 1 320px', padding: '28px', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: '#ffffff' }}>
+          <div style={{ flex: '1 1 320px', padding: '28px', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: '#ffffff', boxSizing: 'border-box' }}>
             <div style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: 20, fontWeight: 800, color: '#111827', margin: 0 }}>
                 {authMode === 'login' && 'Iniciar Sesión'}
@@ -573,8 +573,8 @@ export default function App() {
   // ------------------------------------------
   if (isRecoverySession) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif' }}>
-        <div style={{ width: '100%', maxWidth: 400, background: '#ffffff', borderRadius: 16, padding: 32, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+      <div style={{ minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'hidden', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif', boxSizing: 'border-box' }}>
+        <div style={{ width: '100%', maxWidth: 400, background: '#ffffff', borderRadius: 16, padding: 32, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', boxSizing: 'border-box' }}>
           <h3 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 8px 0', color: '#111827' }}>Actualizar Contraseña</h3>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>Escribe tu nueva contraseña a continuación.</p>
 
@@ -610,18 +610,18 @@ export default function App() {
   // VISTA PRINCIPAL (DASHBOARD AUTENTICADO)
   // ------------------------------------------
   return (
-    <div style={{ minHeight: '100vh', background: '#0d3177', fontFamily: 'Segoe UI, sans-serif', color: '#1f2937' }}>
+    <div style={{ minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'hidden', background: '#0d3177', fontFamily: 'Segoe UI, sans-serif', color: '#1f2937', boxSizing: 'border-box' }}>
       {/* Header */}
-      <header style={{ background: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <header style={{ background: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', minWidth: 0 }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#4f46e5' }}>Mis Gastos</h1>
-          <span style={{ fontSize: 12, background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: 12, fontWeight: 600 }}>
+          <span style={{ fontSize: 12, background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: 12, fontWeight: 600, wordBreak: 'break-all' }}>
             {session.user.email}
           </span>
         </div>
         <button
           onClick={handleLogout}
-          style={{ padding: '8px 16px', background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+          style={{ padding: '8px 16px', background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
         >
           Cerrar Sesión
         </button>
@@ -629,8 +629,8 @@ export default function App() {
 
       {/* Modal Cámara */}
       {cameraOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fff', padding: 24, borderRadius: 16, maxWidth: 480, width: '100%', textAlign: 'center' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, boxSizing: 'border-box' }}>
+          <div style={{ background: '#fff', padding: 24, borderRadius: 16, maxWidth: 480, width: '100%', textAlign: 'center', boxSizing: 'border-box' }}>
             <h3 style={{ margin: '0 0 12px 0' }}>Validación por Cámara</h3>
             {cameraError ? (
               <p style={{ color: '#dc2626', fontSize: 14 }}>{cameraError}</p>
@@ -639,7 +639,7 @@ export default function App() {
                 <video ref={cameraVideoRef} autoPlay playsInline style={{ width: '100%', maxHeight: 300, objectFit: 'cover' }} />
               </div>
             )}
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button onClick={confirmCameraVerification} disabled={!!cameraError} style={{ padding: '10px 20px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
                 Confirmar Captura
               </button>
@@ -652,19 +652,19 @@ export default function App() {
       )}
 
       {/* Contenido Principal */}
-      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px', display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
+      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px', display: 'grid', gridTemplateColumns: '1fr', gap: 24, boxSizing: 'border-box' }}>
         
         {/* SECCIÓN 1: SELECCIÓN DE TARJETA & RESUMEN */}
-        <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', boxSizing: 'border-box', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <div>
+            <div style={{ minWidth: 0, flex: '1 1 200px' }}>
               <label style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: 4 }}>
                 FILTRAR POR TARJETA:
               </label>
               <select
                 value={selectedCardId}
                 onChange={(e) => setSelectedCardId(e.target.value)}
-                style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, background: '#fff', outline: 'none' }}
+                style={{ width: '100%', maxWidth: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, background: '#fff', outline: 'none', boxSizing: 'border-box' }}
               >
                 <option value="all">Todas las tarjetas</option>
                 {cards.map((c) => (
@@ -675,7 +675,7 @@ export default function App() {
               </select>
             </div>
 
-            <div style={{ textAlign: 'right' }}>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
               <span style={{ fontSize: 12, color: '#6b7280', display: 'block' }}>TOTAL REGISTRADO</span>
               <span style={{ fontSize: 24, fontWeight: 800, color: '#10b981' }}>
                 ${totalSpent.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
@@ -697,7 +697,8 @@ export default function App() {
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  minHeight: 110
+                  minHeight: 110,
+                  boxSizing: 'border-box'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -714,8 +715,8 @@ export default function App() {
                   •••• •••• •••• {card.last_digits}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, opacity: 0.8 }}>
-                  <span>{card.holder}</span>
-                  <span>{card.exp_date}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>{card.holder}</span>
+                  <span style={{ flexShrink: 0 }}>{card.exp_date}</span>
                 </div>
                 <button
                   onClick={() => handleDeleteCard(card.id)}
@@ -729,10 +730,10 @@ export default function App() {
         </section>
 
         {/* SECCIÓN 2: FORMULARIOS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
           
           {/* Registrar Tarjeta */}
-          <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', boxSizing: 'border-box', minWidth: 0 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Registrar Nueva Tarjeta</h3>
             <form onSubmit={handleAddCard} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <input
@@ -740,17 +741,17 @@ export default function App() {
                 placeholder="Nombre del Titular"
                 value={newCardHolder}
                 onChange={(e) => setNewCardHolder(e.target.value)}
-                style={{ padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+                style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
               />
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <input
                   type="text"
                   placeholder="Número de Tarjeta (12345678...)"
                   value={cardNumber}
                   onChange={handleCardNumberChange}
-                  style={{ flex: 1, padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+                  style={{ flex: '1 1 160px', minWidth: 0, padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
                 />
-                <span style={{ padding: '10px', background: '#f3f4f6', borderRadius: 6, fontSize: 12, display: 'flex', alignItems: 'center', fontWeight: 600 }}>
+                <span style={{ padding: '10px', background: '#f3f4f6', borderRadius: 6, fontSize: 12, display: 'flex', alignItems: 'center', fontWeight: 600, flexShrink: 0 }}>
                   {detectedBrand}
                 </span>
               </div>
@@ -760,7 +761,7 @@ export default function App() {
                   placeholder="MM/AA (ej: 07/08)"
                   value={expDate}
                   onChange={handleExpDateChange}
-                  style={{ width: '50%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+                  style={{ width: '50%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
                 />
                 <input
                   type="password"
@@ -768,7 +769,7 @@ export default function App() {
                   maxLength={4}
                   value={cvv}
                   onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))}
-                  style={{ width: '50%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+                  style={{ width: '50%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
                 />
               </div>
 
@@ -776,18 +777,18 @@ export default function App() {
                 <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 6 }}>
                   VERIFICACIÓN OBLIGATORIA:
                 </label>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     onClick={handleCardBiometricVerification}
-                    style={{ flex: 1, padding: '8px', background: cardVerificationMethod === 'biometric' ? '#10b981' : '#e5e7eb', color: cardVerificationMethod === 'biometric' ? '#fff' : '#374151', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                    style={{ flex: '1 1 120px', padding: '8px', background: cardVerificationMethod === 'biometric' ? '#10b981' : '#e5e7eb', color: cardVerificationMethod === 'biometric' ? '#fff' : '#374151', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
                   >
                     {cardVerificationMethod === 'biometric' ? '✓ Huella Validada' : '👆 Huella / Biometría'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setCameraOpen(true)}
-                    style={{ flex: 1, padding: '8px', background: cardVerificationMethod === 'camera' ? '#10b981' : '#e5e7eb', color: cardVerificationMethod === 'camera' ? '#fff' : '#374151', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                    style={{ flex: '1 1 120px', padding: '8px', background: cardVerificationMethod === 'camera' ? '#10b981' : '#e5e7eb', color: cardVerificationMethod === 'camera' ? '#fff' : '#374151', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
                   >
                     {cardVerificationMethod === 'camera' ? '✓ Cámara Validada' : '📷 Escanear Cámara'}
                   </button>
@@ -796,7 +797,7 @@ export default function App() {
 
               <button
                 type="submit"
-                style={{ padding: '10px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
+                style={{ width: '100%', padding: '10px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
               >
                 Guardar Tarjeta
               </button>
@@ -804,7 +805,7 @@ export default function App() {
           </section>
 
           {/* Cargar Consumo Manual */}
-          <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', boxSizing: 'border-box', minWidth: 0 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Cargar Consumo Manual</h3>
             <form onSubmit={handleAddExpense} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <input
@@ -812,7 +813,7 @@ export default function App() {
                 placeholder="Descripción (ej: Supermercado)"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                style={{ padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+                style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
               />
               <input
                 type="number"
@@ -820,12 +821,12 @@ export default function App() {
                 placeholder="Monto ($)"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                style={{ padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+                style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
               />
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                style={{ padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff' }}
+                style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff', boxSizing: 'border-box' }}
               >
                 <option value="General">General</option>
                 <option value="Alimentación">Alimentación</option>
@@ -836,7 +837,7 @@ export default function App() {
               <select
                 value={manualCardId}
                 onChange={(e) => setManualCardId(e.target.value)}
-                style={{ padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff' }}
+                style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff', boxSizing: 'border-box' }}
               >
                 {cards.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -846,7 +847,7 @@ export default function App() {
               </select>
               <button
                 type="submit"
-                style={{ padding: '10px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
+                style={{ width: '100%', padding: '10px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
               >
                 Agregar Consumo
               </button>
@@ -856,19 +857,19 @@ export default function App() {
         </div>
 
         {/* SECCIÓN 3: TABLA DE GASTOS E IMPORTACIÓN */}
-        <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', boxSizing: 'border-box', minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Listado de Consumos</h3>
             <div>
-              <label style={{ padding: '8px 12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+              <label style={{ padding: '8px 12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151', display: 'inline-block' }}>
                 {importing ? 'Procesando...' : '📁 Importar Resumen (CSV/Texto)'}
                 <input type="file" accept=".csv,.txt" onChange={handleImportFile} disabled={importing} style={{ display: 'none' }} />
               </label>
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+          <div style={{ overflowX: 'auto', width: '100%' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13, minWidth: 480 }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #e5e7eb', color: '#6b7280' }}>
                   <th style={{ padding: '10px' }}>Descripción</th>
@@ -887,9 +888,9 @@ export default function App() {
                 ) : (
                   filteredExpenses.map((exp) => (
                     <tr key={exp.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td style={{ padding: '10px', fontWeight: 600 }}>{exp.description}</td>
+                      <td style={{ padding: '10px', fontWeight: 600, wordBreak: 'break-word' }}>{exp.description}</td>
                       <td style={{ padding: '10px', color: '#6b7280' }}>{exp.category}</td>
-                      <td style={{ padding: '10px', fontWeight: 700, color: '#10b981' }}>
+                      <td style={{ padding: '10px', fontWeight: 700, color: '#10b981', whiteSpace: 'nowrap' }}>
                         ${Number(exp.amount).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
                       <td style={{ padding: '10px', textAlign: 'right' }}>

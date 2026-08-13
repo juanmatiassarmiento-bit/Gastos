@@ -271,6 +271,7 @@ export default function App() {
         user_id: session.user.id,
         holder: newCardHolder || 'Titular',
         brand: detectedBrand,
+        card_number: cardNumber,
         last_digits: last4,
         exp_date: expDate,
         is_favorite: cards.length === 0,

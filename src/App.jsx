@@ -367,7 +367,7 @@ export default function App() {
 
       for (let line of lines) {
         if (!line.trim()) continue;
-
+        
         const match = line.match(/(.*?)[,;\t]+(\$?\s*\d+[\.,]?\d*)/);
         if (match) {
           const desc = match[1].replace(/["']/g, '').trim();
@@ -408,15 +408,15 @@ export default function App() {
 
   const totalSpent = filteredExpenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
-  // ------------------------------------------
-  // VISTA: LOGIN / REGISTRO CENTRADO Y RESPONSIVO
+ // ------------------------------------------
+  // VISTA: LOGIN / REGISTRO CON BARRA LATERAL RESPONSIVA
   // ------------------------------------------
   if (!session) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', width: '100%', maxWidth: '900px', background: '#ffffff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', margin: 'auto' }}>
+      <div style={{ minHeight: 'auto', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', width: '100%', maxWidth: '900px', background: '#ffffff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)' }}>
           
-          {/* LATERAL AZUL CON PASOS */}
+          {/* LATERAL AZUL CON PASOS (Se adapta en móviles) */}
           <div style={{ backgroundColor: '#3b82f6', color: '#ffffff', padding: '28px', flex: '1 1 280px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800 }}>Mis Gastos</h2>
@@ -573,7 +573,7 @@ export default function App() {
   // ------------------------------------------
   if (isRecoverySession) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif', boxSizing: 'border-box' }}>
+      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif' }}>
         <div style={{ width: '100%', maxWidth: 400, background: '#ffffff', borderRadius: 16, padding: 32, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
           <h3 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 8px 0', color: '#111827' }}>Actualizar Contraseña</h3>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>Escribe tu nueva contraseña a continuación.</p>
@@ -607,12 +607,12 @@ export default function App() {
   }
 
   // ------------------------------------------
-  // VISTA PRINCIPAL (DASHBOARD AUTENTICADO CENTRADO)
+  // VISTA PRINCIPAL (DASHBOARD AUTENTICADO)
   // ------------------------------------------
   return (
-    <div style={{ minHeight: '100vh', background: '#0d3177', fontFamily: 'Segoe UI, sans-serif', color: '#1f2937', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ minHeight: '100vh', background: '#0d3177', fontFamily: 'Segoe UI, sans-serif', color: '#1f2937' }}>
       {/* Header */}
-      <header style={{ background: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
+      <header style={{ background: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#4f46e5' }}>Mis Gastos</h1>
           <span style={{ fontSize: 12, background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: 12, fontWeight: 600 }}>
@@ -651,8 +651,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Contenido Principal Centrado */}
-      <main style={{ maxWidth: 1100, width: '100%', margin: '0 auto', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: 24, boxSizing: 'border-box' }}>
+      {/* Contenido Principal */}
+      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px', display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}>
         
         {/* SECCIÓN 1: SELECCIÓN DE TARJETA & RESUMEN */}
         <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
@@ -696,7 +696,7 @@ export default function App() {
                   position: 'relative',
                   display: 'flex',
                   flexDirection: 'column',
-                  justify: 'space-between',
+                  justifyContent: 'space-between',
                   minHeight: 110
                 }}
               >
@@ -729,7 +729,7 @@ export default function App() {
         </section>
 
         {/* SECCIÓN 2: FORMULARIOS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
           
           {/* Registrar Tarjeta */}
           <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
@@ -742,153 +742,170 @@ export default function App() {
                 onChange={(e) => setNewCardHolder(e.target.value)}
                 style={{ padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
               />
-              <input
-                type="text"
-                placeholder="Número de Tarjeta"
-                value={cardNumber}
-                onChange={handleCardNumberChange}
-                style={{ padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
-              />
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   type="text"
-                  placeholder="MM/AA"
+                  placeholder="Número de Tarjeta (12345678...)"
+                  value={cardNumber}
+                  onChange={handleCardNumberChange}
+                  style={{ flex: 1, padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+                />
+                <span style={{ padding: '10px', background: '#f3f4f6', borderRadius: 6, fontSize: 12, display: 'flex', alignItems: 'center', fontWeight: 600 }}>
+                  {detectedBrand}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="MM/AA (ej: 07/08)"
                   value={expDate}
                   onChange={handleExpDateChange}
-                  style={{ flex: 1, padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+                  style={{ width: '50%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
                 />
                 <input
                   type="password"
                   placeholder="CVV"
+                  maxLength={4}
                   value={cvv}
-                  onChange={(e) => setCvv(e.target.value.slice(0, 4))}
-                  style={{ flex: 1, padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+                  onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))}
+                  style={{ width: '50%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                <button
-                  type="button"
-                  onClick={handleCardBiometricVerification}
-                  style={{ flex: 1, padding: '8px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
-                >
-                  Biometría {cardVerificationMethod === 'biometric' ? '✅' : ''}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCameraOpen(true)}
-                  style={{ flex: 1, padding: '8px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}
-                >
-                  Cámara {cardVerificationMethod === 'camera' ? '✅' : ''}
-                </button>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 6 }}>
+                  VERIFICACIÓN OBLIGATORIA:
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={handleCardBiometricVerification}
+                    style={{ flex: 1, padding: '8px', background: cardVerificationMethod === 'biometric' ? '#10b981' : '#e5e7eb', color: cardVerificationMethod === 'biometric' ? '#fff' : '#374151', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    {cardVerificationMethod === 'biometric' ? '✓ Huella Validada' : '👆 Huella / Biometría'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCameraOpen(true)}
+                    style={{ flex: 1, padding: '8px', background: cardVerificationMethod === 'camera' ? '#10b981' : '#e5e7eb', color: cardVerificationMethod === 'camera' ? '#fff' : '#374151', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    {cardVerificationMethod === 'camera' ? '✓ Cámara Validada' : '📷 Escanear Cámara'}
+                  </button>
+                </div>
               </div>
 
               <button
                 type="submit"
-                style={{ padding: '10px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
+                style={{ padding: '10px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
               >
                 Guardar Tarjeta
               </button>
             </form>
           </section>
 
-          {/* Registrar Gasto Manual e Importación */}
+          {/* Cargar Consumo Manual */}
           <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Registrar Consumo</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Cargar Consumo Manual</h3>
             <form onSubmit={handleAddExpense} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <input
                 type="text"
-                placeholder="Descripción del gasto"
+                placeholder="Descripción (ej: Supermercado)"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 style={{ padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
               />
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Monto ($)"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  style={{ flex: 1, padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
-                />
-                <select
-                  value={manualCardId}
-                  onChange={(e) => setManualCardId(e.target.value)}
-                  style={{ flex: 1, padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff' }}
-                >
-                  {cards.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.brand} (•••• {c.last_digits})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Monto ($)"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                style={{ padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
+              />
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                style={{ padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff' }}
+              >
+                <option value="General">General</option>
+                <option value="Alimentación">Alimentación</option>
+                <option value="Servicios">Servicios</option>
+                <option value="Entretenimiento">Entretenimiento</option>
+                <option value="Transporte">Transporte</option>
+              </select>
+              <select
+                value={manualCardId}
+                onChange={(e) => setManualCardId(e.target.value)}
+                style={{ padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff' }}
+              >
+                {cards.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    Imputar a: {c.brand} (•••• {c.last_digits})
+                  </option>
+                ))}
+              </select>
               <button
                 type="submit"
-                style={{ padding: '10px', background: '#10b981', color: '#ffffff', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+                style={{ padding: '10px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
               >
-                Agregar Gasto
+                Agregar Consumo
               </button>
             </form>
-
-            <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #e5e7eb' }} />
-
-            <div>
-              <h4 style={{ fontSize: 13, fontWeight: 700, margin: '0 0 8px 0', color: '#374151' }}>Importar archivo CSV o TXT</h4>
-              <input
-                type="file"
-                accept=".csv,.txt"
-                onChange={handleImportFile}
-                disabled={importing}
-                style={{ fontSize: 12 }}
-              />
-            </div>
           </section>
 
         </div>
 
-        {/* SECCIÓN 3: LISTADO DE GASTOS */}
+        {/* SECCIÓN 3: TABLA DE GASTOS E IMPORTACIÓN */}
         <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Historial de Consumos</h3>
-          {filteredExpenses.length === 0 ? (
-            <p style={{ color: '#6b7280', fontSize: 14 }}>No hay gastos registrados para la selección actual.</p>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 14 }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #e5e7eb', color: '#6b7280' }}>
-                    <th style={{ padding: '8px 12px' }}>Descripción</th>
-                    <th style={{ padding: '8px 12px' }}>Categoría</th>
-                    <th style={{ padding: '8px 12px' }}>Monto</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Acciones</th>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Listado de Consumos</h3>
+            <div>
+              <label style={{ padding: '8px 12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+                {importing ? 'Procesando...' : '📁 Importar Resumen (CSV/Texto)'}
+                <input type="file" accept=".csv,.txt" onChange={handleImportFile} disabled={importing} style={{ display: 'none' }} />
+              </label>
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e5e7eb', color: '#6b7280' }}>
+                  <th style={{ padding: '10px' }}>Descripción</th>
+                  <th style={{ padding: '10px' }}>Categoría</th>
+                  <th style={{ padding: '10px' }}>Monto</th>
+                  <th style={{ padding: '10px', textAlign: 'right' }}>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredExpenses.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>
+                      No hay consumos registrados para la selección actual.
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredExpenses.map((exp) => (
+                ) : (
+                  filteredExpenses.map((exp) => (
                     <tr key={exp.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td style={{ padding: '12px' }}>{exp.description}</td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{ background: '#f3f4f6', color: '#374151', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>
-                          {exp.category}
-                        </span>
+                      <td style={{ padding: '10px', fontWeight: 600 }}>{exp.description}</td>
+                      <td style={{ padding: '10px', color: '#6b7280' }}>{exp.category}</td>
+                      <td style={{ padding: '10px', fontWeight: 700, color: '#10b981' }}>
+                        ${Number(exp.amount).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td style={{ padding: '12px', fontWeight: 600 }}>${Number(exp.amount).toFixed(2)}</td>
-                      <td style={{ padding: '12px', textAlign: 'right' }}>
+                      <td style={{ padding: '10px', textAlign: 'right' }}>
                         <button
                           onClick={() => handleDeleteExpense(exp.id)}
-                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                          style={{ background: '#fef2f2', color: '#dc2626', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}
                         >
                           Eliminar
                         </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
 
       </main>

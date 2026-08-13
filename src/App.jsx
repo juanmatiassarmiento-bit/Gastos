@@ -305,18 +305,31 @@ export default function App() {
   };
 
   const handleToggleFavorite = async (id) => {
-    try {
-      const target = cards.find((c) => c.id === id);
-      const updatedState = !target.is_favorite;
+  try {
+    const target = cards.find((c) => c.id === id);
+    const updatedState = !target.is_favorite;
 
-      const { error } = await supabase.from('cards').update({ is_favorite: updatedState }).eq('id', id);
-      if (error) throw error;
+    // 1. Actualizamos en Supabase
+    const { error } = await supabase
+      .from('cards')
+      .update({ is_favorite: updatedState })
+      .eq('id', id);
+      
+    if (error) throw error;
 
-      setCards(cards.map((c) => (c.id === id ? { ...c, is_favorite: updatedState } : c)));
-    } catch (err) {
-      alert('Error actualizando favorita: ' + err.message);
-    }
-  };
+    // 2. Actualizamos el estado local
+    const updatedCards = cards.map((c) => 
+      c.id === id ? { ...c, is_favorite: updatedState } : c
+    );
+
+    // 3. Reordenamos: las favoritas (is_favorite === true) van primero
+    updatedCards.sort((a, b) => (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0));
+
+    setCards(updatedCards);
+  } catch (err) {
+    alert('Error actualizando favorita: ' + err.message);
+  }
+};
 
   const handleAddExpense = async (e) => {
     e.preventDefault();

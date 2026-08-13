@@ -57,12 +57,10 @@ export default function App() {
   // INICIALIZACIÓN Y LISTENERS DE SUPABASE
   // ------------------------------------------
   useEffect(() => {
-    // Obtener sesión inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // Escuchar cambios de estado de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       if (event === 'PASSWORD_RECOVERY') {
@@ -73,7 +71,6 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Cargar datos cuando se inicia sesión
   useEffect(() => {
     if (session?.user) {
       fetchCards();
@@ -81,14 +78,12 @@ export default function App() {
     }
   }, [session]);
 
-  // Actualizar tarjeta por defecto seleccionada en formulario de consumo
   useEffect(() => {
     if (cards.length > 0 && !manualCardId) {
       setManualCardId(cards[0].id);
     }
   }, [cards, manualCardId]);
 
-  // Manejo del stream de video para la cámara
   useEffect(() => {
     let stream = null;
     if (cameraOpen && cameraVideoRef.current) {
@@ -215,7 +210,7 @@ export default function App() {
   };
 
   // ------------------------------------------
-  // MANEJO DE TARJETAS
+  // MANEJO DE TARJETAS Y GASTOS
   // ------------------------------------------
   const detectBrand = (number) => {
     const clean = number.replace(/\D/g, '');
@@ -322,9 +317,6 @@ export default function App() {
     }
   };
 
-  // ------------------------------------------
-  // MANEJO DE GASTOS
-  // ------------------------------------------
   const handleAddExpense = async (e) => {
     e.preventDefault();
     if (!description || !amount || !manualCardId) {
@@ -344,7 +336,7 @@ export default function App() {
       const { data, error } = await supabase.from('expenses').insert([newExpense]).select();
       if (error) throw error;
 
-      setExpenses([ ...(data || []), ...expenses ]);
+      setExpenses([...(data || []), ...expenses]);
       setDescription('');
       setAmount('');
     } catch (err) {
@@ -362,9 +354,6 @@ export default function App() {
     }
   };
 
-  // ------------------------------------------
-  // PARSER E IMPORTACIÓN DE RESÚMENES
-  // ------------------------------------------
   const handleImportFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -379,7 +368,6 @@ export default function App() {
       for (let line of lines) {
         if (!line.trim()) continue;
         
-        // Expresión regular para capturar descripción y montos (Formatos CSV/Texto común)
         const match = line.match(/(.*?)[,;\t]+(\$?\s*\d+[\.,]?\d*)/);
         if (match) {
           const desc = match[1].replace(/["']/g, '').trim();
@@ -414,7 +402,6 @@ export default function App() {
     }
   };
 
-  // Cálculos para la vista
   const filteredExpenses = selectedCardId === 'all'
     ? expenses
     : expenses.filter((exp) => exp.card_id === selectedCardId);
@@ -422,109 +409,160 @@ export default function App() {
   const totalSpent = filteredExpenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
   // ------------------------------------------
-  // VISTA: LOGIN / REGISTRO / RECUPERACIÓN
+  // VISTA: LOGIN / REGISTRO CON BARRA LATERAL
   // ------------------------------------------
   if (!session) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif' }}>
-        <div style={{ width: '100%', maxWidth: 420, background: '#ffffff', borderRadius: 16, padding: 32, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <h2 style={{ fontSize: 24, fontWeight: 800, color: '#111827', margin: 0 }}>Mis Gastos & Tarjetas</h2>
-            <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Gestión financiera personal simplificada</p>
+      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Segoe UI, sans-serif' }}>
+        <div style={{ display: 'flex', width: '100%', maxWidth: '900px', background: '#ffffff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)' }}>
+          
+          {/* LATERAL AZUL CON PASOS */}
+          <div style={{ backgroundColor: '#3b82f6', color: '#ffffff', padding: '36px', width: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flexShrink: 0 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '26px', fontWeight: 800 }}>Mis Gastos</h2>
+              <p style={{ fontSize: '13px', opacity: 0.9, marginTop: '8px', marginBottom: '28px', lineHeight: 1.4 }}>
+                Administra tus tarjetas y consumos de forma simple y organizada.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}>1</div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>Crea tu cuenta o Ingresa</h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', opacity: 0.85, lineHeight: 1.3 }}>Accede de forma segura con tu correo electrónico y contraseña.</p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}>2</div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>Registra tus Tarjetas</h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', opacity: 0.85, lineHeight: 1.3 }}>Identificación automática de franquicia (Visa, Mastercard, Amex).</p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}>3</div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>Gestiona e Importa Gastos</h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', opacity: 0.85, lineHeight: 1.3 }}>Registra consumos manualmente o carga tu resumen en CSV, PDF o Excel.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '24px' }}>
+              🛡️ Encriptación y seguridad mediante Supabase
+            </div>
           </div>
 
-          {authMessage && (
-            <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13, background: authMessage.type === 'error' ? '#fef2f2' : '#ecfdf5', color: authMessage.type === 'error' ? '#dc2626' : '#059669', border: `1px solid ${authMessage.type === 'error' ? '#fecaca' : '#a7f3d0'}` }}>
-              {authMessage.text}
-            </div>
-          )}
-
-          <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Correo Electrónico</label>
-              <input
-                type="email"
-                placeholder="usuario@ejemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
-              />
+          {/* FORMULARIO DE AUTENTICACIÓN */}
+          <div style={{ flex: 1, padding: '36px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 22, fontWeight: 800, color: '#111827', margin: 0 }}>
+                {authMode === 'login' && 'Iniciar Sesión'}
+                {authMode === 'signup' && 'Crear Cuenta'}
+                {authMode === 'reset' && 'Recuperar Contraseña'}
+                {authMode === 'otp' && 'Acceso por Código'}
+              </h3>
+              <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
+                Ingresa tus credenciales para continuar
+              </p>
             </div>
 
-            {authMode !== 'otp' && authMode !== 'reset' && (
+            {authMessage && (
+              <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13, background: authMessage.type === 'error' ? '#fef2f2' : '#ecfdf5', color: authMessage.type === 'error' ? '#dc2626' : '#059669', border: `1px solid ${authMessage.type === 'error' ? '#fecaca' : '#a7f3d0'}` }}>
+                {authMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Contraseña</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Correo Electrónico</label>
                 <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  type="email"
+                  placeholder="usuario@ejemplo.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
                 />
               </div>
-            )}
 
-            {authMode === 'otp' && verificationCodeSent && (
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Código OTP Enviado</label>
-                <input
-                  type="text"
-                  placeholder="123456"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 16, letterSpacing: 4, textAlign: 'center', boxSizing: 'border-box', outline: 'none' }}
-                />
-              </div>
-            )}
+              {authMode !== 'otp' && authMode !== 'reset' && (
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Contraseña</label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
+                  />
+                </div>
+              )}
 
-            <button
-              type="submit"
-              disabled={verifyingCode}
-              style={{ width: '100%', padding: '12px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
-            >
-              {verifyingCode && 'Procesando...'}
-              {!verifyingCode && authMode === 'login' && 'Ingresar'}
-              {!verifyingCode && authMode === 'signup' && 'Registrarse'}
-              {!verifyingCode && authMode === 'reset' && 'Enviar Correo de Recuperación'}
-              {!verifyingCode && authMode === 'otp' && (verificationCodeSent ? 'Verificar e Ingresar' : 'Enviar Código')}
-            </button>
-          </form>
+              {authMode === 'otp' && verificationCodeSent && (
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Código OTP Enviado</label>
+                  <input
+                    type="text"
+                    placeholder="123456"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    required
+                    style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 16, letterSpacing: 4, textAlign: 'center', boxSizing: 'border-box', outline: 'none' }}
+                  />
+                </div>
+              )}
 
-          {/* Botones de navegación de modos */}
-          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10, alignment: 'center', fontSize: 13, textAlign: 'center' }}>
-            {authMode !== 'login' && (
               <button
-                type="button"
-                onClick={() => { setAuthMode('login'); setAuthMessage(null); }}
-                style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                type="submit"
+                disabled={verifyingCode}
+                style={{ width: '100%', padding: '12px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
               >
-                ¿Ya tienes cuenta? Inicia Sesión
+                {verifyingCode && 'Procesando...'}
+                {!verifyingCode && authMode === 'login' && 'Ingresar'}
+                {!verifyingCode && authMode === 'signup' && 'Registrarse'}
+                {!verifyingCode && authMode === 'reset' && 'Enviar Correo de Recuperación'}
+                {!verifyingCode && authMode === 'otp' && (verificationCodeSent ? 'Verificar e Ingresar' : 'Enviar Código')}
               </button>
-            )}
+            </form>
 
-            {authMode !== 'signup' && (
-              <button
-                type="button"
-                onClick={() => { setAuthMode('signup'); setAuthMessage(null); }}
-                style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
-              >
-                ¿No tienes cuenta? Regístrate
-              </button>
-            )}
+            <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10, alignment: 'center', fontSize: 13, textAlign: 'center' }}>
+              {authMode !== 'login' && (
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('login'); setAuthMessage(null); }}
+                  style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                >
+                  ¿Ya tienes cuenta? Inicia Sesión
+                </button>
+              )}
 
-            {authMode !== 'otp' && (
-              <button
-                type="button"
-                onClick={openCodeLogin}
-                style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}
-              >
-                Ingresar con código temporal (sin contraseña)
-              </button>
-            )}
+              {authMode !== 'signup' && (
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('signup'); setAuthMessage(null); }}
+                  style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                >
+                  ¿No tienes cuenta? Regístrate
+                </button>
+              )}
+
+              {authMode !== 'otp' && (
+                <button
+                  type="button"
+                  onClick={openCodeLogin}
+                  style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}
+                >
+                  Ingresar con código temporal (sin contraseña)
+                </button>
+              )}
+            </div>
           </div>
+
         </div>
       </div>
     );
@@ -589,7 +627,7 @@ export default function App() {
         </button>
       </header>
 
-      {/* Modal Cámara de Verificación */}
+      {/* Modal Cámara */}
       {cameraOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: '#fff', padding: 24, borderRadius: 16, maxWidth: 480, width: '100%', textAlign: 'center' }}>
@@ -690,7 +728,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* SECCIÓN 2: FORMULARIO NUEVA TARJETA & GASTO MANUAL */}
+        {/* SECCIÓN 2: FORMULARIOS */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
           
           {/* Registrar Tarjeta */}
@@ -707,7 +745,7 @@ export default function App() {
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   type="text"
-                  placeholder="Número de Tarjeta (16 dígitos)"
+                  placeholder="Número de Tarjeta (12345678...)"
                   value={cardNumber}
                   onChange={handleCardNumberChange}
                   style={{ flex: 1, padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
@@ -719,7 +757,7 @@ export default function App() {
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   type="text"
-                  placeholder="MM/AA"
+                  placeholder="MM/AA (ej: 07/08)"
                   value={expDate}
                   onChange={handleExpDateChange}
                   style={{ width: '50%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13 }}
@@ -734,8 +772,7 @@ export default function App() {
                 />
               </div>
 
-              {/* Botones de Verificación Requerida */}
-              <div style={{ marginTop: 4 }}>
+              <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 6 }}>
                   VERIFICACIÓN OBLIGATORIA:
                 </label>
@@ -766,7 +803,7 @@ export default function App() {
             </form>
           </section>
 
-          {/* Cargar Gasto Manual */}
+          {/* Cargar Consumo Manual */}
           <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Cargar Consumo Manual</h3>
             <form onSubmit={handleAddExpense} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -794,7 +831,7 @@ export default function App() {
                 <option value="Alimentación">Alimentación</option>
                 <option value="Servicios">Servicios</option>
                 <option value="Entretenimiento">Entretenimiento</option>
-                <option value="Tecnología">Tecnología</option>
+                <option value="Transporte">Transporte</option>
               </select>
               <select
                 value={manualCardId}
@@ -809,87 +846,62 @@ export default function App() {
               </select>
               <button
                 type="submit"
-                disabled={cards.length === 0}
-                style={{ padding: '10px', background: cards.length === 0 ? '#9ca3af' : '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: cards.length === 0 ? 'not-allowed' : 'pointer' }}
+                style={{ padding: '10px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
               >
-                {cards.length === 0 ? 'Agrega una tarjeta primero' : 'Agregar Consumo'}
+                Agregar Consumo
               </button>
             </form>
           </section>
+
         </div>
 
-        {/* SECCIÓN 3: IMPORTACIÓN DE ARCHIVOS & TABLA DE MOVIMIENTOS */}
+        {/* SECCIÓN 3: TABLA DE GASTOS E IMPORTACIÓN */}
         <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Historial de Consumos</h3>
-            
-            {/* Input para importar resúmenes */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Listado de Consumos</h3>
             <div>
-              <label
-                htmlFor="file-import"
-                style={{ padding: '8px 14px', background: importing ? '#9ca3af' : '#3b82f6', color: '#fff', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: importing ? 'wait' : 'pointer', display: 'inline-block' }}
-              >
-                {importing ? 'Procesando Archivo...' : '📁 Importar Resumen (PDF, CSV, Excel, JSON)'}
+              <label style={{ padding: '8px 12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+                {importing ? 'Procesando...' : '📁 Importar Resumen (CSV/Texto)'}
+                <input type="file" accept=".csv,.txt" onChange={handleImportFile} disabled={importing} style={{ display: 'none' }} />
               </label>
-              <input
-                id="file-import"
-                type="file"
-                accept=".csv, .txt, .tsv, .xls, .xlsx, .json, .pdf"
-                onChange={handleImportFile}
-                disabled={importing}
-                style={{ display: 'none' }}
-              />
             </div>
           </div>
 
-          {/* Listado / Tabla de Gastos */}
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
               <thead>
-                <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb', color: '#4b5563' }}>
-                  <th style={{ padding: '10px 12px' }}>Descripción</th>
-                  <th style={{ padding: '10px 12px' }}>Categoría</th>
-                  <th style={{ padding: '10px 12px' }}>Tarjeta</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right' }}>Monto</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'center' }}>Acción</th>
+                <tr style={{ borderBottom: '2px solid #e5e7eb', color: '#6b7280' }}>
+                  <th style={{ padding: '10px' }}>Descripción</th>
+                  <th style={{ padding: '10px' }}>Categoría</th>
+                  <th style={{ padding: '10px' }}>Monto</th>
+                  <th style={{ padding: '10px', textAlign: 'right' }}>Acción</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredExpenses.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#9ca3af' }}>
-                      No se registraron movimientos para la tarjeta seleccionada.
+                    <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>
+                      No hay consumos registrados para la selección actual.
                     </td>
                   </tr>
                 ) : (
-                  filteredExpenses.map((exp) => {
-                    const card = cards.find((c) => c.id === exp.card_id);
-                    return (
-                      <tr key={exp.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td style={{ padding: '10px 12px', fontWeight: 500 }}>{exp.description}</td>
-                        <td style={{ padding: '10px 12px' }}>
-                          <span style={{ background: '#f3f4f6', padding: '2px 8px', borderRadius: 4, fontSize: 11, color: '#374151' }}>
-                            {exp.category}
-                          </span>
-                        </td>
-                        <td style={{ padding: '10px 12px', color: '#6b7280' }}>
-                          {card ? `${card.brand} (•••• ${card.last_digits})` : 'General / Desconocida'}
-                        </td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#111827' }}>
-                          ${Number(exp.amount).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                          <button
-                            onClick={() => handleDeleteExpense(exp.id)}
-                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14 }}
-                            title="Eliminar gasto"
-                          >
-                            🗑️
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
+                  filteredExpenses.map((exp) => (
+                    <tr key={exp.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      <td style={{ padding: '10px', fontWeight: 600 }}>{exp.description}</td>
+                      <td style={{ padding: '10px', color: '#6b7280' }}>{exp.category}</td>
+                      <td style={{ padding: '10px', fontWeight: 700, color: '#10b981' }}>
+                        ${Number(exp.amount).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td style={{ padding: '10px', textAlign: 'right' }}>
+                        <button
+                          onClick={() => handleDeleteExpense(exp.id)}
+                          style={{ background: '#fef2f2', color: '#dc2626', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>

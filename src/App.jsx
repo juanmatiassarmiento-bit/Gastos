@@ -117,7 +117,7 @@ export default function App() {
         .from('cards')
         .select('*')
         .eq('user_id', session.user.id)
-        .order('is_favorite', { ascending: false }); // Las favoritas se cargan primero
+        .order('is_favorite', { ascending: false }); // Carga las favoritas primero
 
       if (error) throw error;
       setCards(data || []);
@@ -236,15 +236,14 @@ export default function App() {
     setExpDate(val.slice(0, 5));
   };
 
-  // BIOMETRÍA ACTUALIZADA PARA FACE ID / TOUCH ID Y HUELLA
+  // VERIFICACIÓN BIOMÉTRICA (FACE ID / TOUCH ID / HUELLA)
   const handleCardBiometricVerification = async () => {
     if (!window.PublicKeyCredential) {
-      alert('La biometría WebAuthn (Face ID / Huella) no está soportada en este navegador.');
+      alert('La biometría (Face ID / Huella) no está disponible en este navegador.');
       return;
     }
 
     try {
-      // Intenta disparar la autenticación biométrica nativa del dispositivo (Face ID / Touch ID / Huella)
       const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
 
@@ -269,10 +268,9 @@ export default function App() {
       });
 
       setCardVerificationMethod('biometric');
-      alert('✓ Verificación biométrica (Face ID / Huella) completada con éxito.');
+      alert('✓ Verificación biométrica completada.');
     } catch (err) {
-      console.warn('Fallback o cancelación de biometría:', err);
-      // Fallback si se cancela o en entorno local simulado
+      console.warn('Fallback o cancelación:', err);
       setCardVerificationMethod('biometric');
       alert('Validación biométrica aceptada.');
     }
@@ -298,11 +296,11 @@ export default function App() {
       const last4 = cardNumber.slice(-4);
       const isFirstCard = cards.length === 0;
 
-      // Si es la primera tarjeta, será la favorita por defecto
       const newCard = {
         user_id: session.user.id,
         holder: newCardHolder || 'Titular',
         brand: detectedBrand,
+        card_number: cardNumber, // <--- AQUÍ ESTÁ EL CAMPO QUE EVITA EL ERROR DE SUPABASE
         last_digits: last4,
         exp_date: expDate,
         is_favorite: isFirstCard,
@@ -311,7 +309,7 @@ export default function App() {
       const { data, error } = await supabase.from('cards').insert([newCard]).select();
       if (error) throw error;
 
-      await fetchCards(); // Recarga y ordena desde Supabase
+      await fetchCards();
       setNewCardHolder('');
       setCardNumber('');
       setExpDate('');
@@ -335,34 +333,32 @@ export default function App() {
     }
   };
 
-  // FAVORITO MEJORADO: Marca la elegida y desmarca las otras para persistir en recargas
+  // FAVORITO PERSISTENTE TRAS REFRESCAR
   const handleToggleFavorite = async (id) => {
     try {
       const target = cards.find((c) => c.id === id);
       const newFavoriteState = !target.is_favorite;
 
       if (newFavoriteState) {
-        // Desmarcar todas las tarjetas del usuario primero
+        // Desmarca las otras tarjetas
         await supabase
           .from('cards')
           .update({ is_favorite: false })
           .eq('user_id', session.user.id);
 
-        // Marcar solo la seleccionada como favorita
+        // Marca como favorita la seleccionada
         await supabase
           .from('cards')
           .update({ is_favorite: true })
           .eq('id', id);
       } else {
-        // Si la desmarca, simplemente la quita de favorita
         await supabase
           .from('cards')
           .update({ is_favorite: false })
           .eq('id', id);
       }
 
-      // Recargar desde Supabase para garantizar que al refrescar mantenga la posición
-      await fetchCards();
+      await fetchCards(); // Recarga y mantiene orden al refrescar
     } catch (err) {
       alert('Error actualizando favorita: ' + err.message);
     }

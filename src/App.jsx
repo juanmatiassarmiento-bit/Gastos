@@ -612,7 +612,7 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', background: '#f3f4f6', fontFamily: 'Segoe UI, sans-serif', color: '#1f2937' }}>
       {/* Header */}
-      <header style={{ background: '#0b0f19', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header style={{ background: '#000000', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#4f46e5' }}>Mis Gastos</h1>
           <span style={{ fontSize: 12, background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: 12, fontWeight: 600 }}>

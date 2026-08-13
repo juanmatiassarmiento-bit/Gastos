@@ -117,7 +117,7 @@ export default function App() {
         .from('cards')
         .select('*')
         .eq('user_id', session.user.id)
-        .order('is_favorite', { ascending: false }); // Carga las favoritas primero
+        .order('is_favorite', { ascending: false });
 
       if (error) throw error;
       setCards(data || []);
@@ -236,7 +236,6 @@ export default function App() {
     setExpDate(val.slice(0, 5));
   };
 
-  // VERIFICACIÓN BIOMÉTRICA (FACE ID / TOUCH ID / HUELLA)
   const handleCardBiometricVerification = async () => {
     if (!window.PublicKeyCredential) {
       alert('La biometría (Face ID / Huella) no está disponible en este navegador.');
@@ -300,7 +299,7 @@ export default function App() {
         user_id: session.user.id,
         holder: newCardHolder || 'Titular',
         brand: detectedBrand,
-        card_number: cardNumber, // <--- AQUÍ ESTÁ EL CAMPO QUE EVITA EL ERROR DE SUPABASE
+        card_number: cardNumber,
         last_digits: last4,
         exp_date: expDate,
         is_favorite: isFirstCard,
@@ -333,32 +332,41 @@ export default function App() {
     }
   };
 
-  // FAVORITO PERSISTENTE TRAS REFRESCAR
+  // FUNCIÓN DE FAVORITOS CORREGIDA (FUNCIONA Y PONE EN 1ER LUGAR)
   const handleToggleFavorite = async (id) => {
     try {
       const target = cards.find((c) => c.id === id);
-      const newFavoriteState = !target.is_favorite;
+      const nextState = !target.is_favorite;
 
-      if (newFavoriteState) {
-        // Desmarca las otras tarjetas
-        await supabase
-          .from('cards')
-          .update({ is_favorite: false })
-          .eq('user_id', session.user.id);
+      // 1. Actualiza la tarjeta elegida en Supabase
+      const { error } = await supabase
+        .from('cards')
+        .update({ is_favorite: nextState })
+        .eq('id', id);
 
-        // Marca como favorita la seleccionada
-        await supabase
-          .from('cards')
-          .update({ is_favorite: true })
-          .eq('id', id);
-      } else {
-        await supabase
-          .from('cards')
-          .update({ is_favorite: false })
-          .eq('id', id);
+      if (error) throw error;
+
+      // 2. Si marcamos esta como favorita, desmarcamos las demás localmente para no repetir favoritas
+      let updatedCards = cards.map((c) => {
+        if (c.id === id) {
+          return { ...c, is_favorite: nextState };
+        }
+        return nextState ? { ...c, is_favorite: false } : c;
+      });
+
+      // 3. Si hay otras en Supabase, quitamos sus estrellas en segundo plano
+      if (nextState) {
+        cards.forEach(async (c) => {
+          if (c.id !== id && c.is_favorite) {
+            await supabase.from('cards').update({ is_favorite: false }).eq('id', c.id);
+          }
+        });
       }
 
-      await fetchCards(); // Recarga y mantiene orden al refrescar
+      // 4. Ordena para poner la tarjeta favorita arriba inmediatamente
+      updatedCards.sort((a, b) => (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0));
+
+      setCards(updatedCards);
     } catch (err) {
       alert('Error actualizando favorita: ' + err.message);
     }
@@ -750,7 +758,7 @@ export default function App() {
                   <span style={{ fontWeight: 700, fontSize: 14 }}>{card.brand}</span>
                   <button
                     onClick={() => handleToggleFavorite(card.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: card.is_favorite ? '#facc15' : '#ffffff' }}
                     title="Marcar como favorita"
                   >
                     {card.is_favorite ? '⭐' : '☆'}

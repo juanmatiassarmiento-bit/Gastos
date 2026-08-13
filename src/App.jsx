@@ -408,58 +408,58 @@ export default function App() {
 
   const totalSpent = filteredExpenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
-  // ------------------------------------------
-  // VISTA: LOGIN / REGISTRO CON BARRA LATERAL
+ // ------------------------------------------
+  // VISTA: LOGIN / REGISTRO CON BARRA LATERAL RESPONSIVA
   // ------------------------------------------
   if (!session) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', fontFamily: 'Segoe UI, sans-serif' }}>
-        <div style={{ display: 'flex', width: '100%', maxWidth: '900px', background: '#ffffff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)' }}>
+      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', width: '100%', maxWidth: '900px', background: '#ffffff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)' }}>
           
-          {/* LATERAL AZUL CON PASOS */}
-          <div style={{ backgroundColor: '#3b82f6', color: '#ffffff', padding: '36px', width: '320px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flexShrink: 0 }}>
+          {/* LATERAL AZUL CON PASOS (Se adapta en móviles) */}
+          <div style={{ backgroundColor: '#3b82f6', color: '#ffffff', padding: '28px', flex: '1 1 280px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: '26px', fontWeight: 800 }}>Mis Gastos</h2>
-              <p style={{ fontSize: '13px', opacity: 0.9, marginTop: '8px', marginBottom: '28px', lineHeight: 1.4 }}>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800 }}>Mis Gastos</h2>
+              <p style={{ fontSize: '13px', opacity: 0.9, marginTop: '6px', marginBottom: '20px', lineHeight: 1.4 }}>
                 Administra tus tarjetas y consumos de forma simple y organizada.
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}>1</div>
+                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', flexShrink: 0 }}>1</div>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>Crea tu cuenta o Ingresa</h4>
-                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', opacity: 0.85, lineHeight: 1.3 }}>Accede de forma segura con tu correo electrónico y contraseña.</p>
+                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '700' }}>Crea tu cuenta o Ingresa</h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '11px', opacity: 0.85, lineHeight: 1.3 }}>Accede de forma segura con tu correo y contraseña.</p>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}>2</div>
+                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', flexShrink: 0 }}>2</div>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>Registra tus Tarjetas</h4>
-                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', opacity: 0.85, lineHeight: 1.3 }}>Identificación automática de franquicia (Visa, Mastercard, Amex).</p>
+                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '700' }}>Registra tus Tarjetas</h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '11px', opacity: 0.85, lineHeight: 1.3 }}>Identificación automática de franquicia (Visa, Mastercard, Amex).</p>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}>3</div>
+                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', flexShrink: 0 }}>3</div>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>Gestiona e Importa Gastos</h4>
-                    <p style={{ margin: '2px 0 0 0', fontSize: '12px', opacity: 0.85, lineHeight: 1.3 }}>Registra consumos manualmente o carga tu resumen en CSV, PDF o Excel.</p>
+                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '700' }}>Gestiona e Importa Gastos</h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '11px', opacity: 0.85, lineHeight: 1.3 }}>Registra consumos manualmente o carga tu resumen en CSV o texto.</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '24px' }}>
+            <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '20px' }}>
               🛡️ Encriptación y seguridad mediante Supabase
             </div>
           </div>
 
           {/* FORMULARIO DE AUTENTICACIÓN */}
-          <div style={{ flex: 1, padding: '36px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <div style={{ marginBottom: 24 }}>
-              <h3 style={{ fontSize: 22, fontWeight: 800, color: '#111827', margin: 0 }}>
+          <div style={{ flex: '1 1 320px', padding: '28px', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: '#ffffff' }}>
+            <div style={{ marginBottom: 20 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#111827', margin: 0 }}>
                 {authMode === 'login' && 'Iniciar Sesión'}
                 {authMode === 'signup' && 'Crear Cuenta'}
                 {authMode === 'reset' && 'Recuperar Contraseña'}
@@ -530,7 +530,7 @@ export default function App() {
               </button>
             </form>
 
-            <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10, alignment: 'center', fontSize: 13, textAlign: 'center' }}>
+            <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, textAlign: 'center' }}>
               {authMode !== 'login' && (
                 <button
                   type="button"

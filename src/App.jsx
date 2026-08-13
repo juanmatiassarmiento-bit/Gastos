@@ -117,7 +117,7 @@ export default function App() {
         .from('cards')
         .select('*')
         .eq('user_id', session.user.id)
-        .order('is_favorite', { ascending: false });
+        .order('is_favorite', { ascending: false }); // Las favoritas se cargan primero
 
       if (error) throw error;
       setCards(data || []);
@@ -332,13 +332,22 @@ export default function App() {
     }
   };
 
-  // FUNCIÓN DE FAVORITOS CORREGIDA (FUNCIONA Y PONE EN 1ER LUGAR)
+  // FAVORITO PERSISTENTE DEFINITIVO
   const handleToggleFavorite = async (id) => {
     try {
       const target = cards.find((c) => c.id === id);
       const nextState = !target.is_favorite;
 
-      // 1. Actualiza la tarjeta elegida en Supabase
+      // 1. Si vamos a marcar como favorita, desmarcamos las demás tarjetas del usuario en Supabase
+      if (nextState) {
+        await supabase
+          .from('cards')
+          .update({ is_favorite: false })
+          .eq('user_id', session.user.id)
+          .ne('id', id);
+      }
+
+      // 2. Cambiamos el estado de la tarjeta objetivo
       const { error } = await supabase
         .from('cards')
         .update({ is_favorite: nextState })
@@ -346,27 +355,8 @@ export default function App() {
 
       if (error) throw error;
 
-      // 2. Si marcamos esta como favorita, desmarcamos las demás localmente para no repetir favoritas
-      let updatedCards = cards.map((c) => {
-        if (c.id === id) {
-          return { ...c, is_favorite: nextState };
-        }
-        return nextState ? { ...c, is_favorite: false } : c;
-      });
-
-      // 3. Si hay otras en Supabase, quitamos sus estrellas en segundo plano
-      if (nextState) {
-        cards.forEach(async (c) => {
-          if (c.id !== id && c.is_favorite) {
-            await supabase.from('cards').update({ is_favorite: false }).eq('id', c.id);
-          }
-        });
-      }
-
-      // 4. Ordena para poner la tarjeta favorita arriba inmediatamente
-      updatedCards.sort((a, b) => (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0));
-
-      setCards(updatedCards);
+      // 3. Volvemos a pedir las tarjetas a Supabase para sincronizar exactamente lo que hay guardado
+      await fetchCards();
     } catch (err) {
       alert('Error actualizando favorita: ' + err.message);
     }

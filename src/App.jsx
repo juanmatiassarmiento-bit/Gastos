@@ -1,979 +1,529 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useState, useEffect } from 'react'
+import { supabase } from './lib/supabase'
+import { Plus, Trash2, TrendingUp, LogOut, Smartphone, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import GestorTarjetas from './components/GestorTarjetas'
+import HistorialTransacciones from './components/HistorialTransacciones'
+import './App.css'
 
-// ==========================================
-// CONFIGURACIÓN DE SUPABASE
-// ==========================================
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://tu-proyecto.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'tu-anon-key';
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const CATEGORIAS = [
+  '🍕 Comida',
+  '🚗 Transporte',
+  '🛍️ Compras',
+  '🎬 Entretenimiento',
+  '💊 Salud',
+  '📚 Educación',
+  '🏠 Vivienda',
+  '💰 Otro'
+]
 
 export default function App() {
-  // ------------------------------------------
-  // ESTADOS DE AUTENTICACIÓN
-  // ------------------------------------------
-  const [session, setSession] = useState(null);
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'reset' | 'otp'
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [verificationCodeSent, setVerificationCodeSent] = useState(false);
-  const [verifyingCode, setVerifyingCode] = useState(false);
-  const [authMessage, setAuthMessage] = useState(null);
-  const [isRecoverySession, setIsRecoverySession] = useState(false);
-  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [user, setUser] = useState(null)
+  const [gastos, setGastos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [installPrompt, setInstallPrompt] = useState(null)
+  const [tarjetaSeleccionada, setTarjetaSeleccionada] = useState(null)
+  const [busqueda, setBusqueda] = useState('')
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [gastosPorPagina] = useState(5)
+  const [formData, setFormData] = useState({
+    descripcion: '',
+    monto: '',
+    categoria: CATEGORIAS[0],
+    fecha: new Date().toISOString().split('T')[0]
+  })
 
-  // ------------------------------------------
-  // ESTADOS DE TARJETAS Y GASTOS
-  // ------------------------------------------
-  const [cards, setCards] = useState([]);
-  const [selectedCardId, setSelectedCardId] = useState('all');
-  const [expenses, setExpenses] = useState([]);
-
-  // Formulario Nueva Tarjeta
-  const [newCardHolder, setNewCardHolder] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [detectedBrand, setDetectedBrand] = useState('Desconocida');
-  const [expDate, setExpDate] = useState('');
-  const [cvv, setCvv] = useState('');
-  const [cardVerificationMethod, setCardVerificationMethod] = useState(null); // 'biometric' | 'camera'
-
-  // Formulario Nuevo Gasto Manual
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('General');
-  const [manualCardId, setManualCardId] = useState('');
-
-  // Cámara / Escáner
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [cameraError, setCameraError] = useState(null);
-  const cameraVideoRef = useRef(null);
-
-  // Importación
-  const [importing, setImporting] = useState(false);
-
-  // ------------------------------------------
-  // INICIALIZACIÓN Y LISTENERS DE SUPABASE
-  // ------------------------------------------
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsRecoverySession(true);
+      setUser(session?.user ?? null)
+      if (!session?.user) {
+        setLoading(false)
       }
-    });
+    })
 
-    return () => subscription.unsubscribe();
-  }, []);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null)
+      }
+    )
 
-  useEffect(() => {
-    if (session?.user) {
-      fetchCards();
-      fetchExpenses();
-    }
-  }, [session]);
-
-  useEffect(() => {
-    if (cards.length > 0 && !manualCardId) {
-      setManualCardId(cards[0].id);
-    }
-  }, [cards, manualCardId]);
+    return () => subscription?.unsubscribe()
+  }, [])
 
   useEffect(() => {
-    let stream = null;
-    if (cameraOpen && cameraVideoRef.current) {
-      setCameraError(null);
-      navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'environment' } })
-        .then((s) => {
-          stream = s;
-          if (cameraVideoRef.current) {
-            cameraVideoRef.current.srcObject = s;
-          }
-        })
-        .catch((err) => {
-          console.error('Error al acceder a la cámara:', err);
-          setCameraError('No se pudo acceder a la cámara. Verifica los permisos.');
-        });
+    const handler = (event) => {
+      event.preventDefault()
+      setInstallPrompt(event)
     }
+
+    window.addEventListener('beforeinstallprompt', handler)
 
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [cameraOpen]);
-
-  // ------------------------------------------
-  // LÓGICA DE CONSULTAS (DATABASE)
-  // ------------------------------------------
-  const fetchCards = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('cards')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('is_favorite', { ascending: false }); // Las favoritas se cargan primero
-
-      if (error) throw error;
-      setCards(data || []);
-    } catch (err) {
-      console.error('Error obteniendo tarjetas:', err.message);
+      window.removeEventListener('beforeinstallprompt', handler)
     }
-  };
+  }, [])
 
-  const fetchExpenses = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setExpenses(data || []);
-    } catch (err) {
-      console.error('Error obteniendo gastos:', err.message);
+  useEffect(() => {
+    if (user) {
+      cargarGastos()
     }
-  };
+  }, [user])
 
-  // ------------------------------------------
-  // MANEJO DE AUTENTICACIÓN
-  // ------------------------------------------
-  const handleAuthSubmit = async (e) => {
-    e.preventDefault();
-    setVerifyingCode(true);
-    setAuthMessage(null);
+  async function cargarGastos() {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('gastos')
+      .select('*')
+      .order('fecha', { ascending: false })
 
-    try {
-      if (authMode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      } else if (authMode === 'signup') {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        setAuthMessage({ type: 'success', text: 'Registro exitoso. Revisa tu correo de confirmación.' });
-      } else if (authMode === 'reset') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin,
-        });
-        if (error) throw error;
-        setAuthMessage({ type: 'success', text: 'Correo de recuperación enviado.' });
-      } else if (authMode === 'otp') {
-        if (!verificationCodeSent) {
-          const { error } = await supabase.auth.signInWithOtp({ email });
-          if (error) throw error;
-          setVerificationCodeSent(true);
-          setAuthMessage({ type: 'success', text: 'Código enviado a tu correo.' });
-        } else {
-          const { error } = await supabase.auth.verifyOtp({ email, token: otpCode, type: 'email' });
-          if (error) throw error;
+    if (error) {
+      console.error('Error:', error)
+    } else {
+      setGastos(data || [])
+    }
+    setLoading(false)
+  }
+
+  async function agregarGasto(e) {
+    e.preventDefault()
+
+    if (!formData.descripcion || !formData.monto) {
+      alert('Completa todos los campos')
+      return
+    }
+
+    const { error } = await supabase
+      .from('gastos')
+      .insert([
+        {
+          descripcion: formData.descripcion,
+          monto: parseFloat(formData.monto),
+          categoria: formData.categoria,
+          fecha: formData.fecha
         }
-      }
-    } catch (err) {
-      setAuthMessage({ type: 'error', text: err.message });
-    } finally {
-      setVerifyingCode(false);
+      ])
+
+    if (error) {
+      alert('Error al agregar gasto')
+      console.error(error)
+    } else {
+      setFormData({
+        descripcion: '',
+        monto: '',
+        categoria: CATEGORIAS[0],
+        fecha: new Date().toISOString().split('T')[0]
+      })
+      cargarGastos()
     }
-  };
+  }
 
-  const openCodeLogin = () => {
-    setAuthMode('otp');
-    setVerificationCodeSent(false);
-    setAuthMessage(null);
-  };
+  async function eliminarGasto(id) {
+    if (!confirm('¿Eliminar este gasto?')) return
 
-  const handleUpdatePassword = async (e) => {
-    e.preventDefault();
-    setUpdatingPassword(true);
-    try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      alert('Contraseña actualizada correctamente.');
-      setIsRecoverySession(false);
-    } catch (err) {
-      alert('Error al actualizar contraseña: ' + err.message);
-    } finally {
-      setUpdatingPassword(false);
+    const { error } = await supabase
+      .from('gastos')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      alert('Error al eliminar')
+    } else {
+      cargarGastos()
     }
-  };
+  }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setCards([]);
-    setExpenses([]);
-  };
+  async function logout() {
+    await supabase.auth.signOut()
+    setGastos([])
+  }
 
-  // ------------------------------------------
-  // MANEJO DE TARJETAS Y GASTOS
-  // ------------------------------------------
-  const detectBrand = (number) => {
-    const clean = number.replace(/\D/g, '');
-    if (/^4/.test(clean)) return 'Visa';
-    if (/^5[1-5]|^2[2-7]/.test(clean)) return 'Mastercard';
-    if (/^3[47]/.test(clean)) return 'American Express';
-    if (/^6(?:011|5)/.test(clean)) return 'Discover';
-    if (clean.length > 0) return 'Otra';
-    return 'Desconocida';
-  };
-
-  const handleCardNumberChange = (e) => {
-    const val = e.target.value.replace(/\D/g, '').slice(0, 16);
-    setCardNumber(val);
-    setDetectedBrand(detectBrand(val));
-  };
-
-  const handleExpDateChange = (e) => {
-    let val = e.target.value.replace(/\D/g, '');
-    if (val.length >= 2) {
-      val = val.slice(0, 2) + '/' + val.slice(2, 4);
+  async function instalarApp() {
+    if (!installPrompt) return
+    installPrompt.prompt()
+    const choiceResult = await installPrompt.userChoice
+    if (choiceResult.outcome === 'accepted') {
+      console.log('App instalada')
+    } else {
+      console.log('Instalación cancelada')
     }
-    setExpDate(val.slice(0, 5));
-  };
+    setInstallPrompt(null)
+  }
 
-  const handleCardBiometricVerification = async () => {
-    if (!window.PublicKeyCredential) {
-      alert('La biometría (Face ID / Huella) no está disponible en este navegador.');
-      return;
+  function obtenerGastosFiltrados() {
+    const gastosFiltrados = gastos.filter(gasto => {
+      const coincideBusqueda = gasto.descripcion.toLowerCase().includes(busqueda.toLowerCase()) ||
+                                gasto.categoria.toLowerCase().includes(busqueda.toLowerCase())
+      return coincideBusqueda
+    })
+
+    const totalPaginas = Math.ceil(gastosFiltrados.length / gastosPorPagina)
+    const indiceInicio = (paginaActual - 1) * gastosPorPagina
+    const indiceFin = indiceInicio + gastosPorPagina
+    const gastosPaginados = gastosFiltrados.slice(indiceInicio, indiceFin)
+
+    return {
+      gastos: gastosPaginados,
+      total: gastosFiltrados.length,
+      paginaActual,
+      totalPaginas,
+      gastosPorPagina
     }
+  }
 
-    try {
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
+  const totalGastos = gastos.reduce((sum, g) => sum + g.monto, 0)
+  const gastoPorCategoria = gastos.reduce((acc, g) => {
+    acc[g.categoria] = (acc[g.categoria] || 0) + g.monto
+    return acc
+  }, {})
 
-      const publicKeyCredentialCreationOptions = {
-        challenge,
-        rp: { name: "Mis Gastos App" },
-        user: {
-          id: new Uint8Array(16),
-          name: session?.user?.email || "usuario",
-          displayName: session?.user?.email || "Usuario"
-        },
-        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-        authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          userVerification: "required"
-        },
-        timeout: 60000
-      };
-
-      await navigator.credentials.create({
-        publicKey: publicKeyCredentialCreationOptions
-      });
-
-      setCardVerificationMethod('biometric');
-      alert('✓ Verificación biométrica completada.');
-    } catch (err) {
-      console.warn('Fallback o cancelación:', err);
-      setCardVerificationMethod('biometric');
-      alert('Validación biométrica aceptada.');
-    }
-  };
-
-  const confirmCameraVerification = () => {
-    setCardVerificationMethod('camera');
-    setCameraOpen(false);
-  };
-
-  const handleAddCard = async (e) => {
-    e.preventDefault();
-    if (!cardNumber || cardNumber.length < 13) {
-      alert('Por favor ingrese un número de tarjeta válido.');
-      return;
-    }
-    if (!cardVerificationMethod) {
-      alert('Es obligatorio completar una verificación por Biometría o Cámara.');
-      return;
-    }
-
-    try {
-      const last4 = cardNumber.slice(-4);
-      const isFirstCard = cards.length === 0;
-
-      const newCard = {
-        user_id: session.user.id,
-        holder: newCardHolder || 'Titular',
-        brand: detectedBrand,
-        card_number: cardNumber,
-        last_digits: last4,
-        exp_date: expDate,
-        is_favorite: isFirstCard,
-      };
-
-      const { data, error } = await supabase.from('cards').insert([newCard]).select();
-      if (error) throw error;
-
-      await fetchCards();
-      setNewCardHolder('');
-      setCardNumber('');
-      setExpDate('');
-      setCvv('');
-      setDetectedBrand('Desconocida');
-      setCardVerificationMethod(null);
-      alert('Tarjeta agregada exitosamente.');
-    } catch (err) {
-      alert('Error al guardar tarjeta: ' + err.message);
-    }
-  };
-
-  const handleDeleteCard = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar esta tarjeta?')) return;
-    try {
-      const { error } = await supabase.from('cards').delete().eq('id', id);
-      if (error) throw error;
-      setCards(cards.filter((c) => c.id !== id));
-    } catch (err) {
-      alert('Error al eliminar tarjeta: ' + err.message);
-    }
-  };
-
- // FAVORITO GARANTIZADO
-  const handleToggleFavorite = async (id) => {
-    try {
-      const target = cards.find((c) => c.id === id);
-      if (!target) return;
-
-      const nextState = !target.is_favorite;
-
-      // 1. Actualización visual INMEDIATA en React
-      const updatedCards = cards.map((card) => {
-        if (card.id === id) {
-          return { ...card, is_favorite: nextState };
-        }
-        // Si marcamos esta como favorita, desmarcamos las demás en pantalla
-        return nextState ? { ...card, is_favorite: false } : card;
-      });
-
-      // Ordenar para que la favorita quede siempre arriba en pantalla
-      updatedCards.sort((a, b) => (b.is_favorite ? 1 : 0) - (a.is_favorite ? 1 : 0));
-      setCards(updatedCards);
-
-      // 2. Persistir en Supabase
-      if (nextState) {
-        // Desmarcar las otras tarjetas del usuario en Supabase
-        const otherFavorites = cards.filter((c) => c.id !== id && c.is_favorite);
-        for (const favCard of otherFavorites) {
-          await supabase
-            .from('cards')
-            .update({ is_favorite: false })
-            .match({ id: favCard.id, user_id: session.user.id });
-        }
-      }
-
-      // Marcar / Desmarcar la elegida
-      const { error } = await supabase
-        .from('cards')
-        .update({ is_favorite: nextState })
-        .match({ id: id, user_id: session.user.id });
-
-      if (error) {
-        console.error('Error al guardar en Supabase:', error);
-        // Si falla la BD, deshacemos el cambio local para notificar
-        fetchCards();
-        alert('No se pudo guardar la favorita en la base de datos: ' + error.message);
-      }
-    } catch (err) {
-      alert('Error al cambiar favorita: ' + err.message);
-      fetchCards();
-    }
-  };
-
-  const handleAddExpense = async (e) => {
-    e.preventDefault();
-    if (!description || !amount || !manualCardId) {
-      alert('Completa la descripción, monto y selecciona una tarjeta.');
-      return;
-    }
-
-    try {
-      const newExpense = {
-        user_id: session.user.id,
-        card_id: manualCardId,
-        description,
-        amount: parseFloat(amount),
-        category,
-      };
-
-      const { data, error } = await supabase.from('expenses').insert([newExpense]).select();
-      if (error) throw error;
-
-      setExpenses([...(data || []), ...expenses]);
-      setDescription('');
-      setAmount('');
-    } catch (err) {
-      alert('Error al agregar gasto: ' + err.message);
-    }
-  };
-
-  const handleDeleteExpense = async (id) => {
-    try {
-      const { error } = await supabase.from('expenses').delete().eq('id', id);
-      if (error) throw error;
-      setExpenses(expenses.filter((e) => e.id !== id));
-    } catch (err) {
-      alert('Error al eliminar consumo: ' + err.message);
-    }
-  };
-
-  const handleImportFile = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setImporting(true);
-    try {
-      const text = await file.text();
-      const lines = text.split('\n');
-      const parsedExpenses = [];
-      const defaultCardId = cards[0]?.id || null;
-
-      for (let line of lines) {
-        if (!line.trim()) continue;
-        
-        const match = line.match(/(.*?)[,;\t]+(\$?\s*\d+[\.,]?\d*)/);
-        if (match) {
-          const desc = match[1].replace(/["']/g, '').trim();
-          const amt = parseFloat(match[2].replace('$', '').replace(',', '.').trim());
-
-          if (desc && !isNaN(amt) && amt > 0) {
-            parsedExpenses.push({
-              user_id: session.user.id,
-              card_id: defaultCardId,
-              description: desc,
-              amount: amt,
-              category: 'Importación Auto',
-            });
-          }
-        }
-      }
-
-      if (parsedExpenses.length > 0) {
-        const { data, error } = await supabase.from('expenses').insert(parsedExpenses).select();
-        if (error) throw error;
-
-        setExpenses([...(data || []), ...expenses]);
-        alert(`Se importaron ${parsedExpenses.length} consumos correctamente.`);
-      } else {
-        alert('No se encontraron transacciones válidas en el archivo importado.');
-      }
-    } catch (err) {
-      alert('Error al procesar el archivo: ' + err.message);
-    } finally {
-      setImporting(false);
-      e.target.value = '';
-    }
-  };
-
-  const filteredExpenses = selectedCardId === 'all'
-    ? expenses
-    : expenses.filter((exp) => exp.card_id === selectedCardId);
-
-  const totalSpent = filteredExpenses.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-
-  // ------------------------------------------
-  // VISTA: LOGIN / REGISTRO
-  // ------------------------------------------
-  if (!session) {
+  if (loading) {
     return (
-      <div style={{ minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'hidden', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', width: '100%', maxWidth: '900px', background: '#ffffff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)' }}>
-          
-          <div style={{ backgroundColor: '#3b82f6', color: '#ffffff', padding: '28px', flex: '1 1 280px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxSizing: 'border-box' }}>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="text-4xl font-bold text-indigo-600 mb-4">💰</div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Login setUser={setUser} />
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <nav className="bg-white shadow-md sticky top-0 z-50">
+        <div className="w-full px-4 py-4">
+          <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-3 justify-between items-center">
             <div>
-              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800 }}>Mis Gastos</h2>
-              <p style={{ fontSize: '13px', opacity: 0.9, marginTop: '6px', marginBottom: '20px', lineHeight: 1.4 }}>
-                Administra tus tarjetas y consumos de forma simple y organizada.
-              </p>
+              <h1 className="text-2xl font-bold text-indigo-600">💰 Mis Gastos</h1>
+              <p className="text-sm text-gray-500">Control total de tu dinero</p>
+            </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', flexShrink: 0 }}>1</div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '700' }}>Crea tu cuenta o Ingresa</h4>
-                    <p style={{ margin: '2px 0 0 0', fontSize: '11px', opacity: 0.85, lineHeight: 1.3 }}>Accede de forma segura con tu correo y contraseña.</p>
-                  </div>
-                </div>
+            <div className="flex flex-wrap gap-3 items-center justify-center">
+              {installPrompt ? (
+                <button
+                  onClick={instalarApp}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 whitespace-nowrap"
+                >
+                  <Smartphone className="w-5 h-5" /> Instalar App
+                </button>
+              ) : null}
+              <button
+                onClick={logout}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-2"
+              >
+                <LogOut className="w-5 h-5" /> Salir
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
 
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', flexShrink: 0 }}>2</div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '700' }}>Registra tus Tarjetas</h4>
-                    <p style={{ margin: '2px 0 0 0', fontSize: '11px', opacity: 0.85, lineHeight: 1.3 }}>Identificación automática de franquicia (Visa, Mastercard, Amex).</p>
-                  </div>
-                </div>
+      <div className="w-full px-4 py-6 md:py-8">
+        <div className="max-w-6xl mx-auto space-y-6">
+          
+          <div>
+            <GestorTarjetas onTarjetaSeleccionada={setTarjetaSeleccionada} />
+          </div>
 
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: 'rgba(255, 255, 255, 0.25)', display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', flexShrink: 0 }}>3</div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '700' }}>Gestiona e Importa Gastos</h4>
-                    <p style={{ margin: '2px 0 0 0', fontSize: '11px', opacity: 0.85, lineHeight: 1.3 }}>Registra consumos manualmente o carga tu resumen en CSV o texto.</p>
-                  </div>
+          {tarjetaSeleccionada && (
+            <div>
+              <HistorialTransacciones tarjetaId={tarjetaSeleccionada} />
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm">Total este mes</p>
+                  <p className="text-3xl font-bold text-indigo-600 mt-2">
+                    ${totalGastos.toFixed(2)}
+                  </p>
                 </div>
+                <TrendingUp className="w-12 h-12 text-indigo-300" />
               </div>
             </div>
 
-            <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '20px' }}>
-              🛡️ Encriptación y seguridad mediante Supabase
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <p className="text-gray-600 text-sm mb-4">Top categorías</p>
+              <div className="space-y-2">
+                {Object.entries(gastoPorCategoria)
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, 3)
+                  .map(([cat, monto]) => (
+                    <div key={cat} className="flex justify-between text-sm">
+                      <span>{cat}</span>
+                      <span className="font-semibold text-indigo-600">${monto.toFixed(2)}</span>
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
 
-          <div style={{ flex: '1 1 320px', padding: '28px', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: '#ffffff', boxSizing: 'border-box' }}>
-            <div style={{ marginBottom: 20 }}>
-              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#111827', margin: 0 }}>
-                {authMode === 'login' && 'Iniciar Sesión'}
-                {authMode === 'signup' && 'Crear Cuenta'}
-                {authMode === 'reset' && 'Recuperar Contraseña'}
-                {authMode === 'otp' && 'Acceso por Código'}
-              </h3>
-              <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
-                Ingresa tus credenciales para continuar
-              </p>
-            </div>
-
-            {authMessage && (
-              <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13, background: authMessage.type === 'error' ? '#fef2f2' : '#ecfdf5', color: authMessage.type === 'error' ? '#dc2626' : '#059669', border: `1px solid ${authMessage.type === 'error' ? '#fecaca' : '#a7f3d0'}` }}>
-                {authMessage.text}
-              </div>
-            )}
-
-            <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Correo Electrónico</label>
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-bold mb-4">Agregar Gasto</h2>
+            <form onSubmit={agregarGasto} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <input
-                  type="email"
-                  placeholder="usuario@ejemplo.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
+                  type="text"
+                  placeholder="Descripción"
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                  className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <input
+                  type="number"
+                  placeholder="Monto"
+                  step="0.01"
+                  value={formData.monto}
+                  onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
+                  className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              {authMode !== 'otp' && authMode !== 'reset' && (
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Contraseña</label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
-                  />
-                </div>
-              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <select
+                  value={formData.categoria}
+                  onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                  className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {CATEGORIAS.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  value={formData.fecha}
+                  onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
+                  className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
 
-              {authMode === 'otp' && verificationCodeSent && (
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Código OTP Enviado</label>
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-2 font-semibold"
+              >
+                <Plus className="w-5 h-5" /> Agregar
+              </button>
+            </form>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 border-b">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <h2 className="text-xl font-bold">Últimos Gastos</h2>
+                
+                <div className="relative flex-1 md:max-w-xs">
+                  <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="123456"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    required
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 16, letterSpacing: 4, textAlign: 'center', boxSizing: 'border-box', outline: 'none' }}
+                    placeholder="Buscar descripción o categoría..."
+                    value={busqueda}
+                    onChange={(e) => {
+                      setBusqueda(e.target.value)
+                      setPaginaActual(1)
+                    }}
+                    className="w-full pl-10 pr-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-600"
                   />
                 </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={verifyingCode}
-                style={{ width: '100%', padding: '12px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
-              >
-                {verifyingCode && 'Procesando...'}
-                {!verifyingCode && authMode === 'login' && 'Ingresar'}
-                {!verifyingCode && authMode === 'signup' && 'Registrarse'}
-                {!verifyingCode && authMode === 'reset' && 'Enviar Correo de Recuperación'}
-                {!verifyingCode && authMode === 'otp' && (verificationCodeSent ? 'Verificar e Ingresar' : 'Enviar Código')}
-              </button>
-            </form>
-
-            <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, textAlign: 'center' }}>
-              {authMode !== 'login' && (
-                <button
-                  type="button"
-                  onClick={() => { setAuthMode('login'); setAuthMessage(null); }}
-                  style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
-                >
-                  ¿Ya tienes cuenta? Inicia Sesión
-                </button>
-              )}
-
-              {authMode !== 'signup' && (
-                <button
-                  type="button"
-                  onClick={() => { setAuthMode('signup'); setAuthMessage(null); }}
-                  style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
-                >
-                  ¿No tienes cuenta? Regístrate
-                </button>
-              )}
-
-              {authMode !== 'otp' && (
-                <button
-                  type="button"
-                  onClick={openCodeLogin}
-                  style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}
-                >
-                  Ingresar con código temporal (sin contraseña)
-                </button>
-              )}
-            </div>
-          </div>
-
-        </div>
-      </div>
-    );
-  }
-
-  // ------------------------------------------
-  // VISTA DE RECUPERACIÓN DE CONTRASEÑA
-  // ------------------------------------------
-  if (isRecoverySession) {
-    return (
-      <div style={{ minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'hidden', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'Segoe UI, sans-serif', boxSizing: 'border-box' }}>
-        <div style={{ width: '100%', maxWidth: 400, background: '#ffffff', borderRadius: 16, padding: 32, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', boxSizing: 'border-box' }}>
-          <h3 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 8px 0', color: '#111827' }}>Actualizar Contraseña</h3>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>Escribe tu nueva contraseña a continuación.</p>
-
-          <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
-                NUEVA CONTRASEÑA
-              </label>
-              <input
-                type="password"
-                placeholder="Mínimo 6 caracteres"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, boxSizing: 'border-box' }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={updatingPassword}
-              style={{ width: '100%', padding: '12px', background: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
-            >
-              {updatingPassword ? 'Guardando...' : 'Cambiar Contraseña'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // ------------------------------------------
-  // VISTA PRINCIPAL (DASHBOARD)
-  // ------------------------------------------
-  return (
-    <div style={{ minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'hidden', background: '#0d3177', fontFamily: 'Segoe UI, sans-serif', color: '#1f2937', boxSizing: 'border-box' }}>
-      {/* Header */}
-      <header style={{ background: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', minWidth: 0 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#4f46e5' }}>Mis Gastos</h1>
-          <span style={{ fontSize: 12, background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: 12, fontWeight: 600, wordBreak: 'break-all' }}>
-            {session.user.email}
-          </span>
-        </div>
-        <button
-          onClick={handleLogout}
-          style={{ padding: '8px 16px', background: '#ef4444', color: '#ffffff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
-        >
-          Cerrar Sesión
-        </button>
-      </header>
-
-      {/* Modal Cámara */}
-      {cameraOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, boxSizing: 'border-box' }}>
-          <div style={{ background: '#fff', padding: 24, borderRadius: 16, maxWidth: 480, width: '100%', textAlign: 'center', boxSizing: 'border-box' }}>
-            <h3 style={{ margin: '0 0 12px 0' }}>Validación por Cámara</h3>
-            {cameraError ? (
-              <p style={{ color: '#dc2626', fontSize: 14 }}>{cameraError}</p>
-            ) : (
-              <div style={{ overflow: 'hidden', borderRadius: 8, background: '#000', marginBottom: 16 }}>
-                <video ref={cameraVideoRef} autoPlay playsInline style={{ width: '100%', maxHeight: 300, objectFit: 'cover' }} />
               </div>
-            )}
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button onClick={confirmCameraVerification} disabled={!!cameraError} style={{ padding: '10px 20px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
-                Confirmar Captura
-              </button>
-              <button onClick={() => setCameraOpen(false)} style={{ padding: '10px 20px', background: '#6b7280', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Contenido Principal */}
-      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px', display: 'grid', gridTemplateColumns: '1fr', gap: 24, boxSizing: 'border-box' }}>
-        
-        {/* SECCIÓN 1: SELECCIÓN DE TARJETA & RESUMEN */}
-        <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', boxSizing: 'border-box', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ minWidth: 0, flex: '1 1 200px' }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', display: 'block', marginBottom: 4 }}>
-                FILTRAR POR TARJETA:
-              </label>
-              <select
-                value={selectedCardId}
-                onChange={(e) => setSelectedCardId(e.target.value)}
-                style={{ width: '100%', maxWidth: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, background: '#fff', outline: 'none', boxSizing: 'border-box' }}
-              >
-                <option value="all">Todas las tarjetas</option>
-                {cards.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.brand} •••• {c.last_digits} {c.is_favorite ? '⭐' : ''}
-                  </option>
-                ))}
-              </select>
             </div>
 
-            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <span style={{ fontSize: 12, color: '#6b7280', display: 'block' }}>TOTAL REGISTRADO</span>
-              <span style={{ fontSize: 24, fontWeight: 800, color: '#10b981' }}>
-                ${totalSpent.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-          </div>
+            {(() => {
+              const { gastos: gastosMostrados, total, paginaActual: pag, totalPaginas } = obtenerGastosFiltrados()
 
-          {/* Tarjetas Registradas */}
-          <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-            {cards.map((card) => (
-              <div
-                key={card.id}
-                style={{
-                  background: card.is_favorite ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)' : 'linear-gradient(135deg, #374151, #1f2937)',
-                  color: '#fff',
-                  padding: 16,
-                  borderRadius: 10,
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  minHeight: 110,
-                  boxSizing: 'border-box'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 700, fontSize: 14 }}>{card.brand}</span>
-                  <button
-                    onClick={() => handleToggleFavorite(card.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: card.is_favorite ? '#facc15' : '#ffffff' }}
-                    title="Marcar como favorita"
-                  >
-                    {card.is_favorite ? '⭐' : '☆'}
-                  </button>
-                </div>
-                <div style={{ fontSize: 16, letterSpacing: 2, margin: '12px 0', fontFamily: 'monospace' }}>
-                  •••• •••• •••• {card.last_digits}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, opacity: 0.8 }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 4 }}>{card.holder}</span>
-                  <span style={{ flexShrink: 0 }}>{card.exp_date}</span>
-                </div>
-                <button
-                  onClick={() => handleDeleteCard(card.id)}
-                  style={{ position: 'absolute', bottom: 8, right: 8, background: 'rgba(239, 68, 68, 0.2)', border: 'none', color: '#fca5a5', padding: '2px 6px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}
-                >
-                  Eliminar
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
+              if (total === 0) {
+                return (
+                  <p className="p-6 text-center text-gray-500">
+                    {busqueda ? `No hay gastos que coincidan con "${busqueda}"` : 'No hay gastos registrados'}
+                  </p>
+                )
+              }
 
-        {/* SECCIÓN 2: FORMULARIOS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
-          
-          {/* Registrar Tarjeta */}
-          <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', boxSizing: 'border-box', minWidth: 0 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Registrar Nueva Tarjeta</h3>
-            <form onSubmit={handleAddCard} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input
-                type="text"
-                placeholder="Nombre del Titular"
-                value={newCardHolder}
-                onChange={(e) => setNewCardHolder(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
-              />
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <input
-                  type="text"
-                  placeholder="Número de Tarjeta (12345678...)"
-                  value={cardNumber}
-                  onChange={handleCardNumberChange}
-                  style={{ flex: '1 1 160px', minWidth: 0, padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
-                />
-                <span style={{ padding: '10px', background: '#f3f4f6', borderRadius: 6, fontSize: 12, display: 'flex', alignItems: 'center', fontWeight: 600, flexShrink: 0 }}>
-                  {detectedBrand}
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="text"
-                  placeholder="MM/AA (ej: 07/08)"
-                  value={expDate}
-                  onChange={handleExpDateChange}
-                  style={{ width: '50%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
-                />
-                <input
-                  type="password"
-                  placeholder="CVV"
-                  maxLength={4}
-                  value={cvv}
-                  onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))}
-                  style={{ width: '50%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
-                />
-              </div>
+              return (
+                <div className="divide-y">
+                  <div className="max-h-96 overflow-y-auto">
+                    {gastosMostrados.map((gasto) => (
+                      <div key={gasto.id} className="p-4 hover:bg-gray-50 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0 transition">
+                        <div className="flex-1">
+                          <p className="font-semibold">{gasto.descripcion}</p>
+                          <p className="text-sm text-gray-600">{gasto.categoria} • {gasto.fecha}</p>
+                        </div>
+                        <div className="flex items-center gap-4 justify-between md:justify-end">
+                          <span className="text-lg font-bold text-indigo-600">
+                            ${gasto.monto.toFixed(2)}
+                          </span>
+                          <button
+                            onClick={() => eliminarGasto(gasto.id)}
+                            className="text-red-500 hover:text-red-700 transition"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 6 }}>
-                  VERIFICACIÓN OBLIGATORIA:
-                </label>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={handleCardBiometricVerification}
-                    style={{ flex: '1 1 120px', padding: '8px', background: cardVerificationMethod === 'biometric' ? '#10b981' : '#e5e7eb', color: cardVerificationMethod === 'biometric' ? '#fff' : '#374151', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    {cardVerificationMethod === 'biometric' ? '✓ Biometría Validada' : '👤 Face ID / Huella'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCameraOpen(true)}
-                    style={{ flex: '1 1 120px', padding: '8px', background: cardVerificationMethod === 'camera' ? '#10b981' : '#e5e7eb', color: cardVerificationMethod === 'camera' ? '#fff' : '#374151', border: 'none', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    {cardVerificationMethod === 'camera' ? '✓ Cámara Validada' : '📷 Escanear Cámara'}
-                  </button>
-                </div>
-              </div>
+                  {totalPaginas > 1 && (
+                    <div className="px-6 py-4 bg-gray-50 border-t flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <p className="text-sm text-gray-600">
+                        Mostrando {(pag - 1) * gastosPorPagina + 1} - {Math.min(pag * gastosPorPagina, total)} de {total} gastos
+                      </p>
 
-              <button
-                type="submit"
-                style={{ width: '100%', padding: '10px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
-              >
-                Guardar Tarjeta
-              </button>
-            </form>
-          </section>
-
-          {/* Cargar Consumo Manual */}
-          <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', boxSizing: 'border-box', minWidth: 0 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Cargar Consumo Manual</h3>
-            <form onSubmit={handleAddExpense} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input
-                type="text"
-                placeholder="Descripción (ej: Supermercado)"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
-              />
-              <input
-                type="number"
-                step="0.01"
-                placeholder="Monto ($)"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, boxSizing: 'border-box' }}
-              />
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff', boxSizing: 'border-box' }}
-              >
-                <option value="General">General</option>
-                <option value="Alimentación">Alimentación</option>
-                <option value="Servicios">Servicios</option>
-                <option value="Entretenimiento">Entretenimiento</option>
-                <option value="Transporte">Transporte</option>
-              </select>
-              <select
-                value={manualCardId}
-                onChange={(e) => setManualCardId(e.target.value)}
-                style={{ width: '100%', padding: '10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 13, background: '#fff', boxSizing: 'border-box' }}
-              >
-                {cards.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    Imputar a: {c.brand} (•••• {c.last_digits})
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                style={{ width: '100%', padding: '10px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', marginTop: 8 }}
-              >
-                Agregar Consumo
-              </button>
-            </form>
-          </section>
-
-        </div>
-
-        {/* SECCIÓN 3: TABLA DE GASTOS */}
-        <section style={{ background: '#ffffff', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', boxSizing: 'border-box', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Listado de Consumos</h3>
-            <div>
-              <label style={{ padding: '8px 12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151', display: 'inline-block' }}>
-                {importing ? 'Procesando...' : '📁 Importar Resumen (CSV/Texto)'}
-                <input type="file" accept=".csv,.txt" onChange={handleImportFile} disabled={importing} style={{ display: 'none' }} />
-              </label>
-            </div>
-          </div>
-
-          <div style={{ overflowX: 'auto', width: '100%' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13, minWidth: 480 }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #e5e7eb', color: '#6b7280' }}>
-                  <th style={{ padding: '10px' }}>Descripción</th>
-                  <th style={{ padding: '10px' }}>Categoría</th>
-                  <th style={{ padding: '10px' }}>Monto</th>
-                  <th style={{ padding: '10px', textAlign: 'right' }}>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredExpenses.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>
-                      No hay consumos registrados para la selección actual.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredExpenses.map((exp) => (
-                    <tr key={exp.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td style={{ padding: '10px', fontWeight: 600, wordBreak: 'break-word' }}>{exp.description}</td>
-                      <td style={{ padding: '10px', color: '#6b7280' }}>{exp.category}</td>
-                      <td style={{ padding: '10px', fontWeight: 700, color: '#10b981', whiteSpace: 'nowrap' }}>
-                        ${Number(exp.amount).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>
+                      <div className="flex gap-2 flex-wrap">
                         <button
-                          onClick={() => handleDeleteExpense(exp.id)}
-                          style={{ background: '#fef2f2', color: '#dc2626', border: 'none', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}
+                          onClick={() => setPaginaActual(prev => Math.max(prev - 1, 1))}
+                          disabled={pag === 1}
+                          className="flex items-center gap-1 px-3 py-1 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
                         >
-                          Eliminar
+                          <ChevronLeft className="w-4 h-4" /> Anterior
                         </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
 
-      </main>
+                        <div className="flex items-center gap-2">
+                          {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
+                            <button
+                              key={num}
+                              onClick={() => setPaginaActual(num)}
+                              className={`w-8 h-8 rounded-lg font-semibold transition ${
+                                pag === num
+                                  ? 'bg-indigo-600 text-white'
+                                  : 'border-2 border-gray-300 text-gray-600 hover:border-indigo-600'
+                              }`}
+                            >
+                              {num}
+                            </button>
+                          ))}
+                        </div>
+
+                        <button
+                          onClick={() => setPaginaActual(prev => Math.min(prev + 1, totalPaginas))}
+                          disabled={pag === totalPaginas}
+                          className="flex items-center gap-1 px-3 py-1 border-2 border-indigo-600 text-indigo-600 rounded-lg hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        >
+                          Siguiente <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      </div>
     </div>
-  );
+  )
+}
+
+function Login({ setUser }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [isSignUp, setIsSignUp] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+
+  function validarContraseña(pass) {
+    if (pass.length < 8) {
+      return 'Mínimo 8 caracteres'
+    }
+    return ''
+  }
+
+  async function handleAuth(e) {
+    e.preventDefault()
+    setLoading(true)
+    setPasswordError('')
+
+    try {
+      if (isSignUp) {
+        const error = validarContraseña(password)
+        if (error) {
+          setPasswordError(error)
+          setLoading(false)
+          return
+        }
+
+        const { data, error } = await supabase.auth.signUp({ email, password })
+        if (error) throw error
+        alert('✅ Verifica tu email para confirmar la cuenta')
+        setEmail('')
+        setPassword('')
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) throw error
+        const { data: { user } } = await supabase.auth.getUser()
+        setUser(user)
+      }
+    } catch (error) {
+      alert('❌ Error: ' + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-800 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-2">💰 Mis Gastos</h1>
+          <p className="text-gray-600">Control total de tu dinero</p>
+        </div>
+
+        <form onSubmit={handleAuth} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+            <input
+              type="email"
+              placeholder="tu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-600"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Contraseña</label>
+            <input
+              type="password"
+              placeholder="Mínimo 8 caracteres"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                setPasswordError('')
+              }}
+              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-indigo-600"
+              required
+            />
+            {passwordError && (
+              <p className="text-red-500 text-xs mt-1">⚠️ {passwordError}</p>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-semibold"
+          >
+            {loading ? 'Cargando...' : isSignUp ? 'Crear Cuenta' : 'Iniciar Sesión'}
+          </button>
+        </form>
+
+        <p className="text-center mt-4 text-sm">
+          {isSignUp ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}{' '}
+          <button
+            onClick={() => {
+              setIsSignUp(!isSignUp)
+              setPasswordError('')
+            }}
+            className="text-indigo-600 font-semibold hover:underline"
+          >
+            {isSignUp ? 'Inicia sesión' : 'Regístrate'}
+          </button>
+        </p>
+      </div>
+    </div>
+  )
 }
